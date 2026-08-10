@@ -53,6 +53,8 @@ function App() {
   };
 
   useEffect(() => {
+    // Missao 001: carrega dados do modulo de alunos.
+    // Proximas missoes: criar novas funcoes de carga (ex.: carregarTurmas) neste mesmo padrao.
     carregarAlunos();
   }, []);
 
@@ -179,6 +181,7 @@ function App() {
             ))}
           </Grid>
 
+          {/* Estrategia pedagogica: cada tela deve virar um modulo separado com sua regra e seu formulario. */}
           {view === 'alunos' ? (
             <Box>
               <Typography variant="h5" fontWeight={600} sx={{ mb: 2 }}>
@@ -262,7 +265,8 @@ function App() {
                 {menuItems.find((item) => item.key === view)?.label}
               </Typography>
               <Typography color="text.secondary">
-                Esta área ficará disponível para a próxima etapa do sistema escolar.
+                Esta area ficara disponivel para a proxima etapa do sistema escolar.
+                Para a Missao 002, criem um componente/modulo proprio para Turmas antes de adicionar regras aqui.
               </Typography>
             </Paper>
           )}
