@@ -1,4 +1,4 @@
-import Turma from '../models/Turma.js';
+import Turma from '../models/turmas.js';
 
 async function listarTurmas(req, res) {
   try {
