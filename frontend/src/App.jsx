@@ -26,7 +26,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import SearchIcon from '@mui/icons-material/Search';
 
 // ==========================================
-// ESTADOS INICIAIS
+// ESTADOS INICIAIS (Mantidos sem alteração)
 // ==========================================
 
 const initialForm = {
@@ -53,7 +53,7 @@ const initialNotaForm = {
 };
 
 // ==========================================
-// MENU DO SISTEMA
+// MENU DO SISTEMA (Mantido sem alteração)
 // ==========================================
 
 const menuItems = [
@@ -133,7 +133,7 @@ function App() {
   });
 
   // ==========================================
-  // CARREGAR DADOS
+  // CARREGAR DADOS (Lógica mantida 100%)
   // ==========================================
   const carregarAlunos = async () => {
     try {
@@ -248,7 +248,6 @@ function App() {
       setMessage('Aluno excluído com sucesso!');
       carregarAlunos();
     } catch (error) {
-      // Fallback local se a API não possuir rota de delete
       setAlunos((prev) => prev.filter((a) => a.id !== id));
       setMessage('Aluno excluído com sucesso! (Modo Local)');
     }
@@ -303,7 +302,6 @@ function App() {
       setTurmaMessage('Turma excluída com sucesso!');
       carregarTurmas();
     } catch (error) {
-      // Fallback local se a API não possuir rota de delete
       setTurmas((prev) => prev.filter((t) => t.id !== id));
       setTurmaMessage('Turma excluída com sucesso! (Modo Local)');
     }
@@ -378,24 +376,25 @@ function App() {
   // ==========================================
   if (!loggedIn) {
     return (
-      <Container maxWidth="sm" sx={{ py: 6 }}>
-        <Paper elevation={6} sx={{ p: { xs: 3, md: 5 }, borderRadius: 4 }}>
+      <Container maxWidth="xs" sx={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', py: 4 }}>
+        <Paper elevation={4} sx={{ p: { xs: 3, sm: 4 }, borderRadius: 4, width: '100%', border: '1px solid #e2e8f0' }}>
           <Stack spacing={3} alignItems="center">
             <Box textAlign="center">
-              <Typography variant="h4" fontWeight={700}>
+              <Typography variant="h4" fontWeight={700} color="primary.main" gutterBottom>
                 Sistema Escolar
               </Typography>
-              <Typography color="text.secondary">
+              <Typography variant="body2" color="text.secondary">
                 Acesso provisório ao painel administrativo.
               </Typography>
             </Box>
 
             <form onSubmit={handleLoginSubmit} style={{ width: '100%' }}>
-              <Stack spacing={2}>
+              <Stack spacing={2.5}>
                 <TextField
                   fullWidth
                   label="Usuário"
                   name="usuario"
+                  variant="outlined"
                   value={loginForm.usuario}
                   onChange={handleLoginChange}
                 />
@@ -404,16 +403,17 @@ function App() {
                   label="Senha"
                   name="senha"
                   type="password"
+                  variant="outlined"
                   value={loginForm.senha}
                   onChange={handleLoginChange}
                 />
-                <Button type="submit" variant="contained" size="large">
-                  Entrar
+                <Button type="submit" variant="contained" size="large" fullWidth sx={{ py: 1.5, borderRadius: 2, textTransform: 'none', fontWeight: 600, fontSize: '1rem' }}>
+                  Entrar no Sistema
                 </Button>
               </Stack>
             </form>
 
-            <Typography variant="body2" color="text.secondary" textAlign="center">
+            <Typography variant="caption" color="text.secondary" textAlign="center">
               Login ainda será implementado com autenticação real no próximo passo.
             </Typography>
           </Stack>
@@ -427,8 +427,8 @@ function App() {
   // ==========================================
   return (
     <Container maxWidth="xl" sx={{ py: 4 }}>
-      <Paper elevation={3} sx={{ p: { xs: 3, md: 4 }, borderRadius: 4 }}>
-        <Stack spacing={3}>
+      <Paper elevation={0} sx={{ p: { xs: 2.5, md: 4 }, borderRadius: 4, border: '1px solid #e2e8f0', bgcolor: '#ffffff' }}>
+        <Stack spacing={4}>
           {/* CABEÇALHO */}
           <Box
             sx={{
@@ -437,46 +437,62 @@ function App() {
               alignItems: 'center',
               flexWrap: 'wrap',
               gap: 2,
+              pb: 3,
+              borderBottom: '1px solid #f1f5f9'
             }}
           >
             <Box>
-              <Typography variant="h4" fontWeight={700}>
+              <Typography variant="h4" fontWeight={700} color="text.primary">
                 Painel Escolar
               </Typography>
-              <Typography color="text.secondary">
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
                 Gestão administrativa e boletim digital.
               </Typography>
             </Box>
 
-            <Button variant="outlined" onClick={() => setLoggedIn(false)}>
+            <Button variant="outlined" color="error" size="medium" onClick={() => setLoggedIn(false)} sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 600 }}>
               Sair
             </Button>
           </Box>
 
           {/* MENU */}
           <Grid container spacing={2}>
-            {menuItems.map((item) => (
-              <Grid item xs={12} sm={6} md={4} key={item.key}>
-                <Button
-                  fullWidth
-                  variant={view === item.key ? 'contained' : 'outlined'}
-                  sx={{
-                    justifyContent: 'flex-start',
-                    py: 2,
-                    px: 2,
-                    minHeight: 88,
-                  }}
-                  onClick={() => setView(item.key)}
-                >
-                  <Box textAlign="left">
-                    <Typography fontWeight={600}>{item.label}</Typography>
-                    <Typography variant="body2" sx={{ opacity: 0.8 }}>
-                      {item.description}
-                    </Typography>
-                  </Box>
-                </Button>
-              </Grid>
-            ))}
+            {menuItems.map((item) => {
+              const isSelected = view === item.key;
+              return (
+                <Grid item xs={12} sm={6} md={3} lg={1.7} key={item.key} style={{ flexGrow: 1 }}>
+                  <Button
+                    fullWidth
+                    variant={isSelected ? 'contained' : 'outlined'}
+                    color={isSelected ? 'primary' : 'inherit'}
+                    sx={{
+                      justifyContent: 'flex-start',
+                      py: 1.5,
+                      px: 2,
+                      minHeight: 80,
+                      borderRadius: 3,
+                      textAlign: 'left',
+                      borderColor: isSelected ? 'primary.main' : '#e2e8f0',
+                      boxShadow: isSelected ? '0 4px 12px rgba(25, 118, 210, 0.2)' : 'none',
+                      '&:hover': {
+                        borderColor: 'primary.main',
+                        backgroundColor: isSelected ? 'primary.dark' : 'rgba(25, 118, 210, 0.04)',
+                      }
+                    }}
+                    onClick={() => setView(item.key)}
+                  >
+                    <Box textAlign="left" width="100%">
+                      <Typography fontWeight={600} fontSize="0.95rem" color={isSelected ? 'inherit' : 'text.primary'}>
+                        {item.label}
+                      </Typography>
+                      <Typography variant="caption" display="block" sx={{ opacity: isSelected ? 0.9 : 0.7, color: isSelected ? 'inherit' : 'text.secondary', mt: 0.5, lineHeight: 1.2 }}>
+                        {item.description}
+                      </Typography>
+                    </Box>
+                  </Button>
+                </Grid>
+              );
+            })}
           </Grid>
 
           {/* ======================================
@@ -484,22 +500,22 @@ function App() {
           ====================================== */}
           {view === 'alunos' ? (
             <Box>
-              <Typography variant="h5" fontWeight={600} sx={{ mb: 2 }}>
+              <Typography variant="h5" fontWeight={600} sx={{ mb: 2.5 }}>
                 {editingAlunoId ? 'Editar Aluno' : 'Cadastro de Alunos'}
               </Typography>
 
               {message && (
                 <Alert
                   severity={message.includes('sucesso') ? 'success' : 'error'}
-                  sx={{ mb: 2 }}
+                  sx={{ mb: 3, borderRadius: 2 }}
                 >
                   {message}
                 </Alert>
               )}
 
-              <Paper variant="outlined" sx={{ p: 3, borderRadius: 3, mb: 4 }}>
+              <Paper variant="outlined" sx={{ p: { xs: 2.5, md: 3 }, borderRadius: 3, mb: 4, borderColor: '#e2e8f0' }}>
                 <form onSubmit={handleSubmit}>
-                  <Grid container spacing={2}>
+                  <Grid container spacing={2.5}>
                     <Grid item xs={12} md={6}>
                       <TextField
                         fullWidth
@@ -586,12 +602,14 @@ function App() {
                   </Grid>
 
                   <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mt: 3 }}>
-                    <Button type="submit" variant="contained" size="large">
+                    <Button type="submit" variant="contained" size="large" sx={{ borderRadius: 2, px: 4, textTransform: 'none', fontWeight: 600 }}>
                       {editingAlunoId ? 'Atualizar aluno' : 'Salvar aluno'}
                     </Button>
                     <Button
                       variant="outlined"
                       size="large"
+                      color="secondary"
+                      sx={{ borderRadius: 2, px: 3, textTransform: 'none' }}
                       onClick={() => {
                         setForm(initialForm);
                         setEditingAlunoId(null);
@@ -603,19 +621,20 @@ function App() {
                 </form>
               </Paper>
 
-              <Card sx={{ mt: 4 }}>
-                <CardContent>
-                  <Box display="flex" justifyContent="space-between" alignItems="center" mb={2} flexWrap="wrap" gap={2}>
-                    <Typography variant="h6">Alunos Cadastrados</Typography>
+              <Card variant="outlined" sx={{ borderRadius: 3, borderColor: '#e2e8f0' }}>
+                <CardContent sx={{ p: 3 }}>
+                  <Box display="flex" justifyContent="space-between" alignItems="center" mb={3} flexWrap="wrap" gap={2}>
+                    <Typography variant="h6" fontWeight={600}>Alunos Cadastrados</Typography>
                     <TextField
                       size="small"
                       placeholder="Pesquisar aluno..."
                       value={searchAluno}
                       onChange={(e) => setSearchAluno(e.target.value)}
+                      sx={{ minWidth: 260 }}
                       InputProps={{
                         startAdornment: (
                           <InputAdornment position="start">
-                            <SearchIcon />
+                            <SearchIcon color="action" />
                           </InputAdornment>
                         ),
                       }}
@@ -623,32 +642,32 @@ function App() {
                   </Box>
 
                   {alunosFiltrados.length === 0 ? (
-                    <Typography color="text.secondary">
+                    <Typography color="text.secondary" sx={{ py: 2, textAlign: 'center' }}>
                       Nenhum aluno encontrado.
                     </Typography>
                   ) : (
-                    <TableContainer component={Paper} variant="outlined">
-                      <Table>
-                        <TableHead sx={{ backgroundColor: '#f5f5f5' }}>
+                    <TableContainer component={Paper} variant="outlined" sx={{ borderColor: '#f1f5f9' }}>
+                      <Table sx={{ minWidth: 650 }}>
+                        <TableHead sx={{ backgroundColor: '#f8fafc' }}>
                           <TableRow>
-                            <TableCell sx={{ fontWeight: 'bold' }}>Nome</TableCell>
-                            <TableCell sx={{ fontWeight: 'bold' }}>E-mail</TableCell>
-                            <TableCell sx={{ fontWeight: 'bold' }}>Série</TableCell>
-                            <TableCell align="right" sx={{ fontWeight: 'bold' }}>Ações</TableCell>
+                            <TableCell sx={{ fontWeight: 700, color: 'text.secondary' }}>Nome</TableCell>
+                            <TableCell sx={{ fontWeight: 700, color: 'text.secondary' }}>E-mail</TableCell>
+                            <TableCell sx={{ fontWeight: 700, color: 'text.secondary' }}>Série</TableCell>
+                            <TableCell align="right" sx={{ fontWeight: 700, color: 'text.secondary' }}>Ações</TableCell>
                           </TableRow>
                         </TableHead>
                         <TableBody>
                           {alunosFiltrados.map((aluno) => (
-                            <TableRow key={aluno.id} hover>
-                              <TableCell>{aluno.nome}</TableCell>
+                            <TableRow key={aluno.id} hover sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
+                              <TableCell fontWeight={500}>{aluno.nome}</TableCell>
                               <TableCell>{aluno.email}</TableCell>
                               <TableCell>{aluno.serie}</TableCell>
                               <TableCell align="right">
-                                <IconButton color="primary" onClick={() => handleEditAluno(aluno)}>
-                                  <EditIcon />
+                                <IconButton color="primary" onClick={() => handleEditAluno(aluno)} size="small" sx={{ mr: 1 }}>
+                                  <EditIcon fontSize="small" />
                                 </IconButton>
-                                <IconButton color="error" onClick={() => handleDeleteAluno(aluno.id)}>
-                                  <DeleteIcon />
+                                <IconButton color="error" onClick={() => handleDeleteAluno(aluno.id)} size="small">
+                                  <DeleteIcon fontSize="small" />
                                 </IconButton>
                               </TableCell>
                             </TableRow>
@@ -665,22 +684,22 @@ function App() {
                TELA DE TURMAS
             ====================================== */
             <Box>
-              <Typography variant="h5" fontWeight={600} sx={{ mb: 2 }}>
+              <Typography variant="h5" fontWeight={600} sx={{ mb: 2.5 }}>
                 {editingTurmaId ? 'Editar Turma' : 'Cadastro de Turmas'}
               </Typography>
 
               {turmaMessage && (
                 <Alert
                   severity={turmaMessage.includes('sucesso') ? 'success' : 'error'}
-                  sx={{ mb: 2 }}
+                  sx={{ mb: 3, borderRadius: 2 }}
                 >
                   {turmaMessage}
                 </Alert>
               )}
 
-              <Paper variant="outlined" sx={{ p: 3, borderRadius: 3, mb: 4 }}>
+              <Paper variant="outlined" sx={{ p: { xs: 2.5, md: 3 }, borderRadius: 3, mb: 4, borderColor: '#e2e8f0' }}>
                 <form onSubmit={handleTurmaSubmit}>
-                  <Grid container spacing={2}>
+                  <Grid container spacing={2.5}>
                     <Grid item xs={12} md={4}>
                       <TextField
                         fullWidth
@@ -726,12 +745,14 @@ function App() {
                   </Grid>
 
                   <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mt: 3 }}>
-                    <Button type="submit" variant="contained" size="large">
+                    <Button type="submit" variant="contained" size="large" sx={{ borderRadius: 2, px: 4, textTransform: 'none', fontWeight: 600 }}>
                       {editingTurmaId ? 'Atualizar turma' : 'Salvar turma'}
                     </Button>
                     <Button
                       variant="outlined"
                       size="large"
+                      color="secondary"
+                      sx={{ borderRadius: 2, px: 3, textTransform: 'none' }}
                       onClick={() => {
                         setTurmaForm(initialTurmaForm);
                         setEditingTurmaId(null);
@@ -743,19 +764,20 @@ function App() {
                 </form>
               </Paper>
 
-              <Card sx={{ mt: 4 }}>
-                <CardContent>
-                  <Box display="flex" justifyContent="space-between" alignItems="center" mb={2} flexWrap="wrap" gap={2}>
-                    <Typography variant="h6">Turmas Cadastradas</Typography>
+              <Card variant="outlined" sx={{ borderRadius: 3, borderColor: '#e2e8f0' }}>
+                <CardContent sx={{ p: 3 }}>
+                  <Box display="flex" justifyContent="space-between" alignItems="center" mb={3} flexWrap="wrap" gap={2}>
+                    <Typography variant="h6" fontWeight={600}>Turmas Cadastradas</Typography>
                     <TextField
                       size="small"
                       placeholder="Pesquisar turma..."
                       value={searchTurma}
                       onChange={(e) => setSearchTurma(e.target.value)}
+                      sx={{ minWidth: 260 }}
                       InputProps={{
                         startAdornment: (
                           <InputAdornment position="start">
-                            <SearchIcon />
+                            <SearchIcon color="action" />
                           </InputAdornment>
                         ),
                       }}
@@ -763,32 +785,32 @@ function App() {
                   </Box>
 
                   {turmasFiltradas.length === 0 ? (
-                    <Typography color="text.secondary">
+                    <Typography color="text.secondary" sx={{ py: 2, textAlign: 'center' }}>
                       Nenhuma turma encontrada.
                     </Typography>
                   ) : (
-                    <TableContainer component={Paper} variant="outlined">
-                      <Table>
-                        <TableHead sx={{ backgroundColor: '#f5f5f5' }}>
+                    <TableContainer component={Paper} variant="outlined" sx={{ borderColor: '#f1f5f9' }}>
+                      <Table sx={{ minWidth: 600 }}>
+                        <TableHead sx={{ backgroundColor: '#f8fafc' }}>
                           <TableRow>
-                            <TableCell sx={{ fontWeight: 'bold' }}>Nome da Turma</TableCell>
-                            <TableCell sx={{ fontWeight: 'bold' }}>Série</TableCell>
-                            <TableCell sx={{ fontWeight: 'bold' }}>Ano Letivo</TableCell>
-                            <TableCell align="right" sx={{ fontWeight: 'bold' }}>Ações</TableCell>
+                            <TableCell sx={{ fontWeight: 700, color: 'text.secondary' }}>Nome da Turma</TableCell>
+                            <TableCell sx={{ fontWeight: 700, color: 'text.secondary' }}>Série</TableCell>
+                            <TableCell sx={{ fontWeight: 700, color: 'text.secondary' }}>Ano Letivo</TableCell>
+                            <TableCell align="right" sx={{ fontWeight: 700, color: 'text.secondary' }}>Ações</TableCell>
                           </TableRow>
                         </TableHead>
                         <TableBody>
                           {turmasFiltradas.map((turma) => (
-                            <TableRow key={turma.id} hover>
-                              <TableCell>{turma.nome}</TableCell>
+                            <TableRow key={turma.id} hover sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
+                              <TableCell fontWeight={500}>{turma.nome}</TableCell>
                               <TableCell>{turma.serie}</TableCell>
                               <TableCell>{turma.ano}</TableCell>
                               <TableCell align="right">
-                                <IconButton color="primary" onClick={() => handleEditTurma(turma)}>
-                                  <EditIcon />
+                                <IconButton color="primary" onClick={() => handleEditTurma(turma)} size="small" sx={{ mr: 1 }}>
+                                  <EditIcon fontSize="small" />
                                 </IconButton>
-                                <IconButton color="error" onClick={() => handleDeleteTurma(turma.id)}>
-                                  <DeleteIcon />
+                                <IconButton color="error" onClick={() => handleDeleteTurma(turma.id)} size="small">
+                                  <DeleteIcon fontSize="small" />
                                 </IconButton>
                               </TableCell>
                             </TableRow>
@@ -805,23 +827,23 @@ function App() {
                TELA DE NOTAS
             ====================================== */
             <Box>
-              <Typography variant="h5" fontWeight={600} sx={{ mb: 2 }}>
+              <Typography variant="h5" fontWeight={600} sx={{ mb: 2.5 }}>
                 Lançamento de Notas e Boletim Digital
               </Typography>
 
               {notaMessage && (
                 <Alert
                   severity={notaMessage.includes('sucesso') ? 'success' : 'error'}
-                  sx={{ mb: 2 }}
+                  sx={{ mb: 3, borderRadius: 2 }}
                 >
                   {notaMessage}
                 </Alert>
               )}
 
               {/* FORMULÁRIO DE NOTAS */}
-              <Paper variant="outlined" sx={{ p: 3, borderRadius: 3, mb: 4 }}>
+              <Paper variant="outlined" sx={{ p: { xs: 2.5, md: 3 }, borderRadius: 3, mb: 4, borderColor: '#e2e8f0' }}>
                 <form onSubmit={handleNotaSubmit}>
-                  <Grid container spacing={2}>
+                  <Grid container spacing={2.5}>
                     <Grid item xs={12} md={4}>
                       <TextField
                         select
@@ -890,12 +912,14 @@ function App() {
                   </Grid>
 
                   <Stack direction="row" spacing={2} sx={{ mt: 3 }}>
-                    <Button type="submit" variant="contained" size="large">
+                    <Button type="submit" variant="contained" size="large" sx={{ borderRadius: 2, px: 4, textTransform: 'none', fontWeight: 600 }}>
                       Salvar Nota
                     </Button>
                     <Button
                       variant="outlined"
                       size="large"
+                      color="secondary"
+                      sx={{ borderRadius: 2, px: 3, textTransform: 'none' }}
                       onClick={() => setNotaForm(initialNotaForm)}
                     >
                       Limpar
@@ -905,13 +929,13 @@ function App() {
               </Paper>
 
               {/* CONSULTA E MINI BOLETIM */}
-              <Card sx={{ mb: 4 }}>
-                <CardContent>
-                  <Typography variant="h6" gutterBottom>
+              <Card variant="outlined" sx={{ mb: 4, borderRadius: 3, borderColor: '#e2e8f0' }}>
+                <CardContent sx={{ p: 3 }}>
+                  <Typography variant="h6" fontWeight={600} gutterBottom>
                     Consultar Desempenho / Mini Boletim
                   </Typography>
 
-                  <Grid container spacing={2} alignItems="center" sx={{ mb: 3 }}>
+                  <Grid container spacing={2} alignItems="center" sx={{ mb: 3, mt: 0.5 }}>
                     <Grid item xs={12} md={6}>
                       <TextField
                         select
@@ -959,7 +983,7 @@ function App() {
                     }
 
                     return (
-                      <Paper variant="outlined" sx={{ p: 2, mb: 3, bgcolor: '#f9f9f9' }}>
+                      <Paper variant="outlined" sx={{ p: 2.5, mb: 3, bgcolor: '#f8fafc', borderRadius: 2, borderColor: '#e2e8f0' }}>
                         <Grid container spacing={2}>
                           <Grid item xs={12} md={6}>
                             <Typography variant="subtitle1">
@@ -976,7 +1000,7 @@ function App() {
                     );
                   })()}
 
-                  <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 1 }}>
+                  <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 1.5 }}>
                     Notas Cadastradas
                   </Typography>
 
@@ -985,7 +1009,7 @@ function App() {
                       Nenhuma nota lançada até o momento.
                     </Typography>
                   ) : (
-                    <Stack spacing={1}>
+                    <Stack spacing={1.5}>
                       {(filtroAlunoId
                         ? notas.filter((n) => n.aluno_id === parseInt(filtroAlunoId))
                         : notas
@@ -997,11 +1021,16 @@ function App() {
                             key={item.id}
                             sx={{
                               p: 2,
-                              border: '1px solid #e0e0e0',
+                              border: '1px solid #e2e8f0',
                               borderRadius: 2,
                               display: 'flex',
                               justifyContent: 'space-between',
                               alignItems: 'center',
+                              bgcolor: '#ffffff',
+                              '&:hover': {
+                                borderColor: 'primary.light',
+                                boxShadow: '0 2px 8px rgba(0,0,0,0.04)'
+                              }
                             }}
                           >
                             <Box>
@@ -1012,7 +1041,7 @@ function App() {
                                 {item.disciplina} • {item.bimestre}
                               </Typography>
                             </Box>
-                            <Typography variant="h6" fontWeight={700} color="primary">
+                            <Typography variant="h6" fontWeight={700} color="primary.main">
                               {item.nota.toFixed(1)}
                             </Typography>
                           </Box>
@@ -1027,8 +1056,8 @@ function App() {
             /* ======================================
                OUTRAS TELAS
             ====================================== */
-            <Paper variant="outlined" sx={{ p: 4, borderRadius: 3 }}>
-              <Typography variant="h6" gutterBottom>
+            <Paper variant="outlined" sx={{ p: 4, borderRadius: 3, borderColor: '#e2e8f0' }}>
+              <Typography variant="h6" fontWeight={600} gutterBottom>
                 {menuItems.find((item) => item.key === view)?.label}
               </Typography>
               <Typography color="text.secondary">
