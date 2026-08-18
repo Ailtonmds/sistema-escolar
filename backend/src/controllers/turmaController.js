@@ -4,70 +4,93 @@ async function listarTurmas(req, res) {
   try {
     const turmas = await Turma.findAll();
 
-    res.status(200).json(turmas);
+    return res.status(200).json(turmas);
   } catch (erro) {
-    console.error(erro);
+    console.error('Erro ao listar turmas:', erro);
 
-    res.status(500).send(
-      'Erro ao listar turmas: ' + erro.message
-    );
+    return res.status(500).json({
+      message: 'Erro ao listar turmas',
+      error: erro.message,
+    });
   }
 }
 
 async function cadastrarTurma(req, res) {
   try {
-    const { nome, serie, ano } = req.body;
+    const turma = await Turma.create(req.body);
 
-    if (!nome || !serie || !ano) {
-      return res.status(400).send(
-        'Nome, série e ano são obrigatórios.'
-      );
-    }
+    console.log('Turma cadastrada:', turma.nome);
 
-    const novaTurma = await Turma.create({
-      nome,
-      serie,
-      ano
-    });
-
-    res.status(201).json(novaTurma);
-
+    return res.status(201).json(turma);
   } catch (erro) {
-    console.error(erro);
+    console.error('Erro ao cadastrar turma:', erro);
 
-    res.status(500).send(
-      'Erro ao cadastrar turma: ' + erro.message
-    );
+    return res.status(400).json({
+      message: 'Erro ao cadastrar turma',
+      error: erro.message,
+    });
   }
 }
 
 async function atualizarTurma(req, res) {
   try {
-    const { id, nome, serie, ano } = req.body;
-    const turmaExistente = await Turma.findByPk(id);
+    const { id } = req.params;
 
-    if (!turmaExistente) {
-      return res.status(404).send("Turma não encontrada");
+    const turma = await Turma.findByPk(id);
+
+    if (!turma) {
+      return res.status(404).json({
+        message: 'Turma não encontrada',
+      });
     }
 
-    const turmaAtualizada = await turmaExistente.update({
-      nome,
-      serie,
-      ano
-    });
+    await turma.update(req.body);
 
-    res.status(200).json(turmaAtualizada);
+    console.log('Turma atualizada:', turma.nome);
+
+    return res.status(200).json(turma);
   } catch (erro) {
-    console.error(erro);
+    console.error('Erro ao atualizar turma:', erro);
 
-    res.status(500).send(
-      'Erro ao atualizar turma: ' + erro.message
-    );
+    return res.status(400).json({
+      message: 'Erro ao atualizar turma',
+      error: erro.message,
+    });
+  }
+}
+
+async function excluirTurma(req, res) {
+  try {
+    const { id } = req.params;
+
+    const turma = await Turma.findByPk(id);
+
+    if (!turma) {
+      return res.status(404).json({
+        message: 'Turma não encontrada',
+      });
+    }
+
+    await turma.destroy();
+
+    console.log('Turma excluída:', id);
+
+    return res.status(200).json({
+      message: 'Turma excluída com sucesso',
+    });
+  } catch (erro) {
+    console.error('Erro ao excluir turma:', erro);
+
+    return res.status(500).json({
+      message: 'Erro ao excluir turma',
+      error: erro.message,
+    });
   }
 }
 
 export default {
   listarTurmas,
   cadastrarTurma,
-  atualizarTurma
+  atualizarTurma,
+  excluirTurma,
 };
