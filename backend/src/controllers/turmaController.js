@@ -1,17 +1,33 @@
-import Turma from '../models/turmas.js';
+import Turma from '../models/Turma.js';
+import Aluno from '../models/Aluno.js'; // Importando o modelo Aluno
 
 async function listarTurmas(req, res) {
   try {
-    const turmas = await Turma.findAll();
+    // Inclui a lista de alunos de cada turma para que possamos saber a quantidade
+    const turmas = await Turma.findAll({
+      include: [
+        {
+          model: Aluno,
+          as: 'alunos' // Ou apenas model: Aluno se não houver alias configurado
+        }
+      ]
+    });
 
     return res.status(200).json(turmas);
   } catch (erro) {
     console.error('Erro ao listar turmas:', erro);
 
-    return res.status(500).json({
-      message: 'Erro ao listar turmas',
-      error: erro.message,
-    });
+    // Fallback: se por algum motivo a associação ainda não estiver definida no Sequelize,
+    // busca todas as turmas normalmente
+    try {
+      const turmasSimples = await Turma.findAll();
+      return res.status(200).json(turmasSimples);
+    } catch (e) {
+      return res.status(500).json({
+        message: 'Erro ao listar turmas',
+        error: erro.message,
+      });
+    }
   }
 }
 

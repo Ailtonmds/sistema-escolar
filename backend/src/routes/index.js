@@ -1,11 +1,12 @@
-import express from 'express';
+import { Router } from 'express';
+import alunoRoutes from './alunos/routes.js';
+import turmaRoutes from './turmas/routes.js';
+import notaRoutes from './notas/routes.js';
 
-import alunosRoutes from './alunos/routes.js';
-import turmasRoutes from './turmas/routes.js';
+const router = Router();
 
-const routes = express.Router();
+router.use('/api/alunos', alunoRoutes);
+router.use('/api/turmas', turmaRoutes);
+router.use('/api/notas', notaRoutes);
 
-routes.use(alunosRoutes);
-routes.use(turmasRoutes);
-
-export default routes;
+export default router;

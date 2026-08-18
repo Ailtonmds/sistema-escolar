@@ -1,30 +1,32 @@
 import { DataTypes, Model } from 'sequelize';
 import sequelize from '../config/database.js';
 
-class Turma extends Model {}
+class Nota extends Model {}
 
-Turma.init(
+Nota.init(
   {
-    nome: {
-      type: DataTypes.STRING,
-      allowNull: false
-    },
-
-    serie: {
-      type: DataTypes.STRING,
-      allowNull: false
-    },
-
-    ano: {
+    aluno_id: {
       type: DataTypes.INTEGER,
+      allowNull: false
+    },
+    disciplina: {
+      type: DataTypes.STRING,
+      allowNull: false
+    },
+    bimestre: {
+      type: DataTypes.STRING,
+      allowNull: false
+    },
+    nota: {
+      type: DataTypes.FLOAT,
       allowNull: false
     }
   },
   {
     sequelize,
-    modelName: 'turma',
-    tableName: 'turmas'
+    modelName: 'nota',
+    tableName: 'notas'
   }
 );
 
-export default Turma;
+export default Nota;
