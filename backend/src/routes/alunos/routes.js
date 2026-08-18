@@ -7,6 +7,8 @@ const routes = express.Router();
 // Quando o React enviar um POST para /alunos, o controlador será ativado [18, 19]
 routes.get('/alunos', alunoController.listarAlunos);
 routes.post('/alunos', alunoController.cadastrarAluno);
+routes.put('/alunos', alunoController.atualizarAluno);
+routes.delete('/alunos', alunoController.excluirAluno);
 
 export default routes;
 

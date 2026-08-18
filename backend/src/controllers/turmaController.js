@@ -41,7 +41,33 @@ async function cadastrarTurma(req, res) {
   }
 }
 
+async function atualizarTurma(req, res) {
+  try {
+    const { id, nome, serie, ano } = req.body;
+    const turmaExistente = await Turma.findByPk(id);
+
+    if (!turmaExistente) {
+      return res.status(404).send("Turma não encontrada");
+    }
+
+    const turmaAtualizada = await turmaExistente.update({
+      nome,
+      serie,
+      ano
+    });
+
+    res.status(200).json(turmaAtualizada);
+  } catch (erro) {
+    console.error(erro);
+
+    res.status(500).send(
+      'Erro ao atualizar turma: ' + erro.message
+    );
+  }
+}
+
 export default {
   listarTurmas,
-  cadastrarTurma
+  cadastrarTurma,
+  atualizarTurma
 };
