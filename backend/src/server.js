@@ -26,7 +26,13 @@ async function connectDatabaseWithRetry() {
       await sequelize.authenticate();
       console.log('Conexao com o banco de dados estabelecida com sucesso!');
 
-      await sequelize.sync({ force: DB_SYNC_FORCE });
+      if (DB_SYNC_FORCE) {
+        await sequelize.query('DROP TABLE IF EXISTS alunos');
+        await sequelize.query('DROP TABLE IF EXISTS turmas');
+        await sequelize.sync();
+      } else {
+        await sequelize.sync();
+      }
       console.log('Banco de dados sincronizado com sucesso!');
       return;
     } catch (error) {

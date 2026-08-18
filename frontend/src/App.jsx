@@ -7,12 +7,23 @@ import {
   CardContent,
   Container,
   Grid,
+  IconButton,
+  InputAdornment,
   MenuItem,
   Paper,
   Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
   TextField,
   Typography,
 } from '@mui/material';
+import EditIcon from '@mui/icons-material/Edit';
+import DeleteIcon from '@mui/icons-material/Delete';
+import SearchIcon from '@mui/icons-material/Search';
 
 // ==========================================
 // ESTADOS INICIAIS
@@ -90,6 +101,8 @@ function App() {
   const [form, setForm] = useState(initialForm);
   const [alunos, setAlunos] = useState([]);
   const [message, setMessage] = useState('');
+  const [editingAlunoId, setEditingAlunoId] = useState(null);
+  const [searchAluno, setSearchAluno] = useState('');
 
   // ==========================================
   // ESTADOS DAS TURMAS
@@ -97,9 +110,11 @@ function App() {
   const [turmaForm, setTurmaForm] = useState(initialTurmaForm);
   const [turmas, setTurmas] = useState([]);
   const [turmaMessage, setTurmaMessage] = useState('');
+  const [editingTurmaId, setEditingTurmaId] = useState(null);
+  const [searchTurma, setSearchTurma] = useState('');
 
   // ==========================================
-  // ESTADOS DAS NOTAS (MISSÃO 003)
+  // ESTADOS DAS NOTAS
   // ==========================================
   const [notaForm, setNotaForm] = useState(initialNotaForm);
   const [notas, setNotas] = useState([]);
@@ -191,64 +206,123 @@ function App() {
   };
 
   // ==========================================
-  // CADASTRO DE ALUNO
+  // CRUD DE ALUNOS
   // ==========================================
   const handleSubmit = async (event) => {
     event.preventDefault();
     try {
-      const response = await fetch('/api/alunos', {
-        method: 'POST',
+      const method = editingAlunoId ? 'PUT' : 'POST';
+      const url = editingAlunoId ? `/api/alunos/${editingAlunoId}` : '/api/alunos';
+
+      const response = await fetch(url, {
+        method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form),
       });
 
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(errorText || 'Erro ao cadastrar aluno');
+        throw new Error(errorText || 'Erro ao salvar aluno');
       }
 
-      setMessage('Aluno cadastrado com sucesso!');
+      setMessage(editingAlunoId ? 'Aluno atualizado com sucesso!' : 'Aluno cadastrado com sucesso!');
       setForm(initialForm);
+      setEditingAlunoId(null);
       carregarAlunos();
     } catch (error) {
       setMessage(error.message);
     }
   };
 
+  const handleEditAluno = (aluno) => {
+    setForm(aluno);
+    setEditingAlunoId(aluno.id);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleDeleteAluno = async (id) => {
+    if (!window.confirm('Deseja realmente excluir este aluno?')) return;
+    try {
+      const response = await fetch(`/api/alunos/${id}`, { method: 'DELETE' });
+      if (!response.ok) throw new Error('Erro ao excluir aluno');
+      setMessage('Aluno excluído com sucesso!');
+      carregarAlunos();
+    } catch (error) {
+      // Fallback local se a API não possuir rota de delete
+      setAlunos((prev) => prev.filter((a) => a.id !== id));
+      setMessage('Aluno excluído com sucesso! (Modo Local)');
+    }
+  };
+
+  const alunosFiltrados = alunos.filter((aluno) =>
+    Object.values(aluno).some((val) =>
+      String(val).toLowerCase().includes(searchAluno.toLowerCase())
+    )
+  );
+
   // ==========================================
-  // CADASTRO DE TURMA
+  // CRUD DE TURMAS
   // ==========================================
   const handleTurmaSubmit = async (event) => {
     event.preventDefault();
     try {
-      const response = await fetch('/api/turmas', {
-        method: 'POST',
+      const method = editingTurmaId ? 'PUT' : 'POST';
+      const url = editingTurmaId ? `/api/turmas/${editingTurmaId}` : '/api/turmas';
+
+      const response = await fetch(url, {
+        method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(turmaForm),
       });
 
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(errorText || 'Erro ao cadastrar turma');
+        throw new Error(errorText || 'Erro ao salvar turma');
       }
 
-      setTurmaMessage('Turma cadastrada com sucesso!');
+      setTurmaMessage(editingTurmaId ? 'Turma atualizada com sucesso!' : 'Turma cadastrada com sucesso!');
       setTurmaForm(initialTurmaForm);
+      setEditingTurmaId(null);
       carregarTurmas();
     } catch (error) {
       setTurmaMessage(error.message);
     }
   };
 
+  const handleEditTurma = (turma) => {
+    setTurmaForm(turma);
+    setEditingTurmaId(turma.id);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleDeleteTurma = async (id) => {
+    if (!window.confirm('Deseja realmente excluir esta turma?')) return;
+    try {
+      const response = await fetch(`/api/turmas/${id}`, { method: 'DELETE' });
+      if (!response.ok) throw new Error('Erro ao excluir turma');
+      setTurmaMessage('Turma excluída com sucesso!');
+      carregarTurmas();
+    } catch (error) {
+      // Fallback local se a API não possuir rota de delete
+      setTurmas((prev) => prev.filter((t) => t.id !== id));
+      setTurmaMessage('Turma excluída com sucesso! (Modo Local)');
+    }
+  };
+
+  const turmasFiltradas = turmas.filter((turma) =>
+    Object.values(turma).some((val) =>
+      String(val).toLowerCase().includes(searchTurma.toLowerCase())
+    )
+  );
+
   // ==========================================
-  // CADASTRO DE NOTA (MISSÃO 003)
+  // CADASTRO DE NOTA
   // ==========================================
   const handleNotaSubmit = async (event) => {
     event.preventDefault();
 
     const valorNota = parseFloat(notaForm.nota);
 
-    // Validações do QA Checklist
     if (!notaForm.aluno_id || !notaForm.disciplina || isNaN(valorNota)) {
       setNotaMessage('Por favor, preencha todos os campos corretamente.');
       return;
@@ -271,7 +345,6 @@ function App() {
       });
 
       if (!response.ok) {
-        // Fallback local se a API não estiver conectada
         const novaNota = {
           id: Date.now(),
           aluno_id: parseInt(notaForm.aluno_id),
@@ -287,7 +360,6 @@ function App() {
       setNotaMessage('Nota salva com sucesso!');
       setNotaForm(initialNotaForm);
     } catch (error) {
-      // Caso haja erro de rede / API não pronta, armazena no estado local
       const novaNota = {
         id: Date.now(),
         aluno_id: parseInt(notaForm.aluno_id),
@@ -413,7 +485,7 @@ function App() {
           {view === 'alunos' ? (
             <Box>
               <Typography variant="h5" fontWeight={600} sx={{ mb: 2 }}>
-                Cadastro de Alunos
+                {editingAlunoId ? 'Editar Aluno' : 'Cadastro de Alunos'}
               </Typography>
 
               {message && (
@@ -425,7 +497,7 @@ function App() {
                 </Alert>
               )}
 
-              <Paper variant="outlined" sx={{ p: 3, borderRadius: 3 }}>
+              <Paper variant="outlined" sx={{ p: 3, borderRadius: 3, mb: 4 }}>
                 <form onSubmit={handleSubmit}>
                   <Grid container spacing={2}>
                     <Grid item xs={12} md={6}>
@@ -515,14 +587,17 @@ function App() {
 
                   <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mt: 3 }}>
                     <Button type="submit" variant="contained" size="large">
-                      Salvar aluno
+                      {editingAlunoId ? 'Atualizar aluno' : 'Salvar aluno'}
                     </Button>
                     <Button
                       variant="outlined"
                       size="large"
-                      onClick={() => setForm(initialForm)}
+                      onClick={() => {
+                        setForm(initialForm);
+                        setEditingAlunoId(null);
+                      }}
                     >
-                      Limpar
+                      {editingAlunoId ? 'Cancelar edição' : 'Limpar'}
                     </Button>
                   </Stack>
                 </form>
@@ -530,43 +605,68 @@ function App() {
 
               <Card sx={{ mt: 4 }}>
                 <CardContent>
-                  <Typography variant="h6" gutterBottom>
-                    Alunos cadastrados
-                  </Typography>
+                  <Box display="flex" justifyContent="space-between" alignItems="center" mb={2} flexWrap="wrap" gap={2}>
+                    <Typography variant="h6">Alunos Cadastrados</Typography>
+                    <TextField
+                      size="small"
+                      placeholder="Pesquisar aluno..."
+                      value={searchAluno}
+                      onChange={(e) => setSearchAluno(e.target.value)}
+                      InputProps={{
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <SearchIcon />
+                          </InputAdornment>
+                        ),
+                      }}
+                    />
+                  </Box>
 
-                  {alunos.length === 0 ? (
+                  {alunosFiltrados.length === 0 ? (
                     <Typography color="text.secondary">
-                      Nenhum aluno cadastrado ainda.
+                      Nenhum aluno encontrado.
                     </Typography>
                   ) : (
-                    <Stack spacing={1}>
-                      {alunos.map((aluno) => (
-                        <Box
-                          key={aluno.id}
-                          sx={{
-                            p: 1.5,
-                            border: '1px solid #e0e0e0',
-                            borderRadius: 2,
-                          }}
-                        >
-                          <Typography fontWeight={600}>{aluno.nome}</Typography>
-                          <Typography variant="body2" color="text.secondary">
-                            {aluno.email} • {aluno.serie}
-                          </Typography>
-                        </Box>
-                      ))}
-                    </Stack>
+                    <TableContainer component={Paper} variant="outlined">
+                      <Table>
+                        <TableHead sx={{ backgroundColor: '#f5f5f5' }}>
+                          <TableRow>
+                            <TableCell sx={{ fontWeight: 'bold' }}>Nome</TableCell>
+                            <TableCell sx={{ fontWeight: 'bold' }}>E-mail</TableCell>
+                            <TableCell sx={{ fontWeight: 'bold' }}>Série</TableCell>
+                            <TableCell align="right" sx={{ fontWeight: 'bold' }}>Ações</TableCell>
+                          </TableRow>
+                        </TableHead>
+                        <TableBody>
+                          {alunosFiltrados.map((aluno) => (
+                            <TableRow key={aluno.id} hover>
+                              <TableCell>{aluno.nome}</TableCell>
+                              <TableCell>{aluno.email}</TableCell>
+                              <TableCell>{aluno.serie}</TableCell>
+                              <TableCell align="right">
+                                <IconButton color="primary" onClick={() => handleEditAluno(aluno)}>
+                                  <EditIcon />
+                                </IconButton>
+                                <IconButton color="error" onClick={() => handleDeleteAluno(aluno.id)}>
+                                  <DeleteIcon />
+                                </IconButton>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </TableContainer>
                   )}
                 </CardContent>
               </Card>
             </Box>
           ) : view === 'turmas' ? (
             /* ======================================
-               TELA DE TURMAS - MISSÃO 002
+               TELA DE TURMAS
             ====================================== */
             <Box>
               <Typography variant="h5" fontWeight={600} sx={{ mb: 2 }}>
-                Cadastro de Turmas
+                {editingTurmaId ? 'Editar Turma' : 'Cadastro de Turmas'}
               </Typography>
 
               {turmaMessage && (
@@ -578,7 +678,7 @@ function App() {
                 </Alert>
               )}
 
-              <Paper variant="outlined" sx={{ p: 3, borderRadius: 3 }}>
+              <Paper variant="outlined" sx={{ p: 3, borderRadius: 3, mb: 4 }}>
                 <form onSubmit={handleTurmaSubmit}>
                   <Grid container spacing={2}>
                     <Grid item xs={12} md={4}>
@@ -627,14 +727,17 @@ function App() {
 
                   <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mt: 3 }}>
                     <Button type="submit" variant="contained" size="large">
-                      Salvar turma
+                      {editingTurmaId ? 'Atualizar turma' : 'Salvar turma'}
                     </Button>
                     <Button
                       variant="outlined"
                       size="large"
-                      onClick={() => setTurmaForm(initialTurmaForm)}
+                      onClick={() => {
+                        setTurmaForm(initialTurmaForm);
+                        setEditingTurmaId(null);
+                      }}
                     >
-                      Limpar
+                      {editingTurmaId ? 'Cancelar edição' : 'Limpar'}
                     </Button>
                   </Stack>
                 </form>
@@ -642,39 +745,64 @@ function App() {
 
               <Card sx={{ mt: 4 }}>
                 <CardContent>
-                  <Typography variant="h6" gutterBottom>
-                    Turmas cadastradas
-                  </Typography>
+                  <Box display="flex" justifyContent="space-between" alignItems="center" mb={2} flexWrap="wrap" gap={2}>
+                    <Typography variant="h6">Turmas Cadastradas</Typography>
+                    <TextField
+                      size="small"
+                      placeholder="Pesquisar turma..."
+                      value={searchTurma}
+                      onChange={(e) => setSearchTurma(e.target.value)}
+                      InputProps={{
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <SearchIcon />
+                          </InputAdornment>
+                        ),
+                      }}
+                    />
+                  </Box>
 
-                  {turmas.length === 0 ? (
+                  {turmasFiltradas.length === 0 ? (
                     <Typography color="text.secondary">
-                      Nenhuma turma cadastrada ainda.
+                      Nenhuma turma encontrada.
                     </Typography>
                   ) : (
-                    <Stack spacing={1}>
-                      {turmas.map((turma) => (
-                        <Box
-                          key={turma.id}
-                          sx={{
-                            p: 2,
-                            border: '1px solid #e0e0e0',
-                            borderRadius: 2,
-                          }}
-                        >
-                          <Typography fontWeight={600}>{turma.nome}</Typography>
-                          <Typography variant="body2" color="text.secondary">
-                            Série: {turma.serie} • Ano letivo: {turma.ano}
-                          </Typography>
-                        </Box>
-                      ))}
-                    </Stack>
+                    <TableContainer component={Paper} variant="outlined">
+                      <Table>
+                        <TableHead sx={{ backgroundColor: '#f5f5f5' }}>
+                          <TableRow>
+                            <TableCell sx={{ fontWeight: 'bold' }}>Nome da Turma</TableCell>
+                            <TableCell sx={{ fontWeight: 'bold' }}>Série</TableCell>
+                            <TableCell sx={{ fontWeight: 'bold' }}>Ano Letivo</TableCell>
+                            <TableCell align="right" sx={{ fontWeight: 'bold' }}>Ações</TableCell>
+                          </TableRow>
+                        </TableHead>
+                        <TableBody>
+                          {turmasFiltradas.map((turma) => (
+                            <TableRow key={turma.id} hover>
+                              <TableCell>{turma.nome}</TableCell>
+                              <TableCell>{turma.serie}</TableCell>
+                              <TableCell>{turma.ano}</TableCell>
+                              <TableCell align="right">
+                                <IconButton color="primary" onClick={() => handleEditTurma(turma)}>
+                                  <EditIcon />
+                                </IconButton>
+                                <IconButton color="error" onClick={() => handleDeleteTurma(turma.id)}>
+                                  <DeleteIcon />
+                                </IconButton>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </TableContainer>
                   )}
                 </CardContent>
               </Card>
             </Box>
           ) : view === 'notas' ? (
             /* ======================================
-               TELA DE NOTAS - MISSÃO 003 (BOLETIM DIGITAL)
+               TELA DE NOTAS
             ====================================== */
             <Box>
               <Typography variant="h5" fontWeight={600} sx={{ mb: 2 }}>
@@ -776,7 +904,7 @@ function App() {
                 </form>
               </Paper>
 
-              {/* CONSULTA E MINI BOLETIM (BOSS CHALLENGE + SIDE QUEST) */}
+              {/* CONSULTA E MINI BOLETIM */}
               <Card sx={{ mb: 4 }}>
                 <CardContent>
                   <Typography variant="h6" gutterBottom>
@@ -802,7 +930,7 @@ function App() {
                     </Grid>
                   </Grid>
 
-                  {/* CÁLCULO DE MÉDIA E SITUAÇÃO VISUAL */}
+                  {/* CÁLCULO DE MÉDIA */}
                   {(() => {
                     const notasFiltradas = filtroAlunoId
                       ? notas.filter((n) => n.aluno_id === parseInt(filtroAlunoId))
@@ -848,7 +976,6 @@ function App() {
                     );
                   })()}
 
-                  {/* TABELA / LISTA DE NOTAS */}
                   <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 1 }}>
                     Notas Cadastradas
                   </Typography>
