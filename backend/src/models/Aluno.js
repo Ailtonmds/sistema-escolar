@@ -44,7 +44,8 @@ Aluno.init(
   },
   {
     sequelize,
-    modelName: 'aluno'
+    modelName: 'aluno',
+    tableName: 'alunos'
   }
 );
 
