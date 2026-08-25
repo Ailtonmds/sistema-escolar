@@ -61,6 +61,7 @@ import MenuBookIcon from '@mui/icons-material/MenuBook';
 import AddIcon from '@mui/icons-material/Add';
 import CloseIcon from '@mui/icons-material/Close';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
+import HowToRegIcon from '@mui/icons-material/HowToReg';
 import Slide from '@mui/material/Slide';
 
 const API_BASE_URL = 'http://localhost:3000';
@@ -116,12 +117,19 @@ const initialNotaForm = {
   nota: '',
 };
 
+const initialFrequenciaForm = {
+  aluno_id: '',
+  data: new Date().toISOString().split('T')[0],
+  presente: 'Sim',
+};
+
 const menuItems = [
   { key: 'dashboard', label: 'Início', description: 'Visão geral do sistema', icon: <DashboardIcon /> },
   { key: 'alunos', label: 'Alunos', description: 'Cadastro e consulta de estudantes', icon: <PeopleIcon /> },
   { key: 'professores', label: 'Professores', description: 'Gestão da equipe', icon: <SupervisorAccountIcon /> },
   { key: 'turmas', label: 'Turmas', description: 'Organização escolar', icon: <ClassIcon /> },
   { key: 'notas', label: 'Notas / Boletim', description: 'Lançamento e consulta de notas', icon: <AssessmentIcon /> },
+  { key: 'frequencia', label: 'Chamada', description: 'Registro de frequência dos alunos', icon: <HowToRegIcon /> },
   { key: 'financeiro', label: 'Financeiro', description: 'Mensalidades e contas', icon: <AttachMoneyIcon /> },
   { key: 'relatorios', label: 'Relatórios', description: 'Indicadores da escola', icon: <BarChartIcon /> },
 ];
@@ -257,6 +265,9 @@ function App() {
   const [notas, setNotas] = useState([]);
   const [filtroAlunoId, setFiltroAlunoId] = useState('');
 
+  const [frequenciaForm, setFrequenciaForm] = useState(initialFrequenciaForm);
+  const [frequencias, setFrequencias] = useState([]);
+
   const [view, setView] = useState('dashboard');
   const [loggedIn, setLoggedIn] = useState(false);
   const [loginForm, setLoginForm] = useState({ usuario: '', senha: '' });
@@ -301,18 +312,84 @@ function App() {
     }
   };
 
+  const carregarFrequencias = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/frequencias`);
+      if (!response.ok) throw new Error('Erro ao carregar frequências');
+      setFrequencias(await response.json());
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
   useEffect(() => {
     if (loggedIn) {
       carregarAlunos();
       carregarTurmas();
       carregarNotas();
+      carregarFrequencias();
     }
   }, [loggedIn]);
 
   const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
   const handleTurmaChange = (e) => setTurmaForm({ ...turmaForm, [e.target.name]: e.target.value });
   const handleNotaChange = (e) => setNotaForm({ ...notaForm, [e.target.name]: e.target.value });
+  const handleFrequenciaChange = (e) => setFrequenciaForm({ ...frequenciaForm, [e.target.name]: e.target.value });
   const handleLoginChange = (e) => setLoginForm({ ...loginForm, [e.target.name]: e.target.value });
+
+  const criarFrequenciaLocal = () => ({
+    id: Date.now(),
+    aluno_id: parseInt(frequenciaForm.aluno_id),
+    data: frequenciaForm.data,
+    presente: frequenciaForm.presente,
+  });
+
+  const handleFrequenciaSubmit = async (event) => {
+    event.preventDefault();
+
+    if (!frequenciaForm.aluno_id || !frequenciaForm.data || !frequenciaForm.presente) {
+      notify('Preencha todos os campos da chamada.', 'error');
+      return;
+    }
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/frequencias`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...frequenciaForm,
+          aluno_id: parseInt(frequenciaForm.aluno_id),
+        }),
+      });
+
+      if (!response.ok) {
+        setFrequencias((prev) => [...prev, criarFrequenciaLocal()]);
+        notify('Frequência registrada com sucesso! (modo local)', 'warning');
+      } else {
+        notify('Frequência registrada com sucesso!');
+        carregarFrequencias();
+      }
+
+      setFrequenciaForm({
+        ...initialFrequenciaForm,
+        data: frequenciaForm.data,
+      });
+    } catch (error) {
+      setFrequencias((prev) => [...prev, criarFrequenciaLocal()]);
+      notify('Frequência registrada com sucesso! (modo local)', 'warning');
+      setFrequenciaForm({
+        ...initialFrequenciaForm,
+        data: frequenciaForm.data,
+      });
+    }
+  };
+
+  const formatarData = (data) => {
+    if (!data) return '—';
+    const partes = String(data).split('T')[0].split('-');
+    if (partes.length !== 3) return data;
+    return `${partes[2]}/${partes[1]}/${partes[0]}`;
+  };
 
   const handleLoginSubmit = (event) => {
     event.preventDefault();
@@ -818,7 +895,7 @@ function App() {
                       <Grid item xs={12} md={7}>
                         <SectionCard title="Acesso rápido">
                           <Grid container spacing={1.5}>
-                            {menuItems.slice(1, 5).map((item) => (
+                            {menuItems.slice(1, 6).map((item) => (
                               <Grid item xs={12} sm={6} key={item.key}>
                                 <Button
                                   fullWidth
@@ -1183,6 +1260,159 @@ function App() {
                         <Stack spacing={1.5}>
                           {notasFiltradasBoletim.map(renderNotaRow)}
                         </Stack>
+                      )}
+                    </SectionCard>
+                  </Box>
+                )}
+
+                {/* CHAMADA / FREQUÊNCIA */}
+                {view === 'frequencia' && (
+                  <Box>
+                    <Typography variant="h5" sx={{ mb: 2.5 }}>
+                      Registro de Frequência
+                    </Typography>
+
+                    <SectionCard title="Registrar chamada">
+                      <form onSubmit={handleFrequenciaSubmit}>
+                        <Grid container spacing={2.5}>
+                          <Grid item xs={12} md={5}>
+                            <TextField
+                              select
+                              fullWidth
+                              label="Aluno"
+                              name="aluno_id"
+                              value={frequenciaForm.aluno_id}
+                              onChange={handleFrequenciaChange}
+                              required
+                            >
+                              {alunos.length === 0 ? (
+                                <MenuItem disabled value="">Nenhum aluno cadastrado</MenuItem>
+                              ) : (
+                                alunos.map((aluno) => (
+                                  <MenuItem key={aluno.id} value={aluno.id}>
+                                    {aluno.nome}
+                                  </MenuItem>
+                                ))
+                              )}
+                            </TextField>
+                          </Grid>
+
+                          <Grid item xs={12} sm={6} md={3}>
+                            <TextField
+                              fullWidth
+                              label="Data"
+                              name="data"
+                              type="date"
+                              value={frequenciaForm.data}
+                              onChange={handleFrequenciaChange}
+                              InputLabelProps={{ shrink: true }}
+                              required
+                            />
+                          </Grid>
+
+                          <Grid item xs={12} sm={6} md={4}>
+                            <TextField
+                              select
+                              fullWidth
+                              label="Presente"
+                              name="presente"
+                              value={frequenciaForm.presente}
+                              onChange={handleFrequenciaChange}
+                              required
+                            >
+                              <MenuItem value="Sim">Sim</MenuItem>
+                              <MenuItem value="Não">Não</MenuItem>
+                            </TextField>
+                          </Grid>
+                        </Grid>
+
+                        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mt: 3 }}>
+                          <Button
+                            type="submit"
+                            variant="contained"
+                            startIcon={<HowToRegIcon />}
+                            sx={{ px: 4, py: 1.1, borderRadius: 3 }}
+                          >
+                            Registrar
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="text"
+                            color="inherit"
+                            startIcon={<CloseIcon />}
+                            sx={{ px: 3, borderRadius: 3 }}
+                            onClick={() => setFrequenciaForm(initialFrequenciaForm)}
+                          >
+                            Limpar
+                          </Button>
+                        </Stack>
+                      </form>
+                    </SectionCard>
+
+                    <SectionCard title={`Presenças Registradas (${frequencias.length})`}>
+                      {frequencias.length === 0 ? (
+                        <EmptyState
+                          icon={<HowToRegIcon />}
+                          text="Nenhum registro de frequência até o momento."
+                        />
+                      ) : (
+                        <TableContainer sx={{ borderRadius: 3, border: '1px solid', borderColor: 'grey.200' }}>
+                          <Table size="small">
+                            <TableHead sx={{ bgcolor: 'grey.50' }}>
+                              <TableRow>
+                                <TableCell sx={{ fontWeight: 700 }}>Aluno</TableCell>
+                                <TableCell sx={{ fontWeight: 700 }}>Data</TableCell>
+                                <TableCell sx={{ fontWeight: 700 }}>Presente</TableCell>
+                              </TableRow>
+                            </TableHead>
+                            <TableBody>
+                              {[...frequencias].reverse().map((registro) => {
+                                const aluno = alunos.find((a) => Number(a.id) === Number(registro.aluno_id));
+                                const presente = String(registro.presente).toLowerCase() === 'sim' ||
+                                  registro.presente === true ||
+                                  registro.presente === 1;
+
+                                return (
+                                  <TableRow
+                                    key={registro.id}
+                                    hover
+                                    sx={{ '&:last-child td, &:last-child th': { border: 0 } }}
+                                  >
+                                    <TableCell>
+                                      <Stack direction="row" spacing={1.5} alignItems="center">
+                                        <Avatar
+                                          sx={{
+                                            width: 34,
+                                            height: 34,
+                                            bgcolor: presente ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.12)',
+                                            color: presente ? 'success.main' : 'error.main',
+                                            fontSize: 13,
+                                            fontWeight: 700,
+                                          }}
+                                        >
+                                          {getInitials(aluno?.nome)}
+                                        </Avatar>
+                                        <Typography fontWeight={600}>
+                                          {aluno?.nome || registro.aluno_nome || 'Aluno não localizado'}
+                                        </Typography>
+                                      </Stack>
+                                    </TableCell>
+                                    <TableCell>{formatarData(registro.data)}</TableCell>
+                                    <TableCell>
+                                      <Chip
+                                        label={presente ? 'Sim' : 'Não'}
+                                        size="small"
+                                        color={presente ? 'success' : 'error'}
+                                        variant="outlined"
+                                        sx={{ fontWeight: 700 }}
+                                      />
+                                    </TableCell>
+                                  </TableRow>
+                                );
+                              })}
+                            </TableBody>
+                          </Table>
+                        </TableContainer>
                       )}
                     </SectionCard>
                   </Box>
