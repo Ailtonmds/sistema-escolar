@@ -20,16 +20,12 @@ Turma.init(
       allowNull: false
     },
 
-    // CAMPO ADICIONADO (MISSÃO 002):
-    professor_responsavel: {
-      type: DataTypes.STRING,
-      allowNull: true // Pode ser true ou false, dependendo se é obrigatório
-    }
   },
   {
     sequelize,
     modelName: 'turma',
-    tableName: 'turmas'
+    tableName: 'turmas',
+    timestamps: false
   }
 );
 

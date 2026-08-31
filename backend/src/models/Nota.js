@@ -10,11 +10,12 @@ Nota.init(
       allowNull: false
     },
     disciplina: {
-      type: DataTypes.STRING,
-      allowNull: false
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      field: 'disciplina_id'
     },
     bimestre: {
-      type: DataTypes.STRING,
+      type: DataTypes.INTEGER,
       allowNull: false
     },
     nota: {
@@ -25,7 +26,8 @@ Nota.init(
   {
     sequelize,
     modelName: 'nota',
-    tableName: 'notas'
+    tableName: 'notas',
+    timestamps: false
   }
 );
 

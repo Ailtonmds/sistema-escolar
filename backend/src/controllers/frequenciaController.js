@@ -1,6 +1,13 @@
 import { Op } from 'sequelize';
 import Frequencia from '../models/Frequencia.js';
 import Aluno from '../models/Aluno.js';
+import Turma from '../models/Turma.js';
+
+function classificarFrequencia(percentual) {
+  if (percentual >= 75) return { nivel: 'Boa', cor: '#10b981', rotulo: 'Frequência Boa' };
+  if (percentual >= 60) return { nivel: 'Atenção', cor: '#f59e0b', rotulo: 'Atenção' };
+  return { nivel: 'Risco', cor: '#ef4444', rotulo: 'Risco de Reprovação' };
+}
 
 async function listarFrequencias(req, res) {
   try {
@@ -175,9 +182,78 @@ async function obterEstatisticas(req, res) {
   }
 }
 
+// Resumo de frequência: % por aluno, classificação, alunos em risco e ranking.
+// Filtro opcional por turma: ?turma_id=1
+async function obterResumoFrequencias(req, res) {
+  try {
+    const { turma_id } = req.query;
+
+    const whereAluno = {};
+    if (turma_id) {
+      whereAluno.turma_id = turma_id;
+    }
+
+    const alunos = await Aluno.findAll({
+      where: whereAluno,
+      include: [
+        {
+          model: Frequencia,
+          as: 'frequencias',
+          attributes: ['presente']
+        },
+        {
+          model: Turma,
+          as: 'turma',
+          attributes: ['id', 'nome']
+        }
+      ]
+    });
+
+    const resumo = alunos.map((aluno) => {
+      const registros = aluno.frequencias || [];
+      const total = registros.length;
+      const presencas = registros.filter((r) => r.presente === true).length;
+      const faltas = total - presencas;
+      const percentual = total > 0 ? parseFloat(((presencas / total) * 100).toFixed(1)) : 0;
+      const classificacao = classificarFrequencia(percentual);
+
+      return {
+        aluno_id: aluno.id,
+        nome: aluno.nome,
+        turma: aluno.turma ? aluno.turma.nome : null,
+        total_aulas: total,
+        presencas,
+        faltas,
+        percentual,
+        classificacao
+      };
+    });
+
+    const emRisco = resumo.filter((r) => r.percentual < 75);
+
+    const ranking = [...resumo].sort((a, b) => b.percentual - a.percentual);
+
+    return res.status(200).json({
+      resumo,
+      emRisco,
+      ranking,
+      total_alunos: resumo.length,
+      alunos_em_risco: emRisco.length
+    });
+  } catch (erro) {
+    console.error('Erro ao obter resumo de frequência:', erro);
+
+    return res.status(500).json({
+      message: 'Erro ao obter resumo de frequência',
+      error: erro.message
+    });
+  }
+}
+
 export default {
   listarFrequencias,
   adicionarFrequencia,
   obterFrequenciasAluno,
-  obterEstatisticas
+  obterEstatisticas,
+  obterResumoFrequencias
 };

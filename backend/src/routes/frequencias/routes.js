@@ -17,4 +17,9 @@ router.get(
   frequenciaController.obterEstatisticas
 );
 
+router.get(
+  '/resumo',
+  frequenciaController.obterResumoFrequencias
+);
+
 export default router;

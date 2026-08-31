@@ -22,6 +22,7 @@ DROP TABLE IF EXISTS notas;
 DROP TABLE IF EXISTS aluno_disciplinas;
 DROP TABLE IF EXISTS disciplinas;
 DROP TABLE IF EXISTS alunos;
+DROP TABLE IF EXISTS professores;
 DROP TABLE IF EXISTS turmas;
 
 SET FOREIGN_KEY_CHECKS = 1;
@@ -67,6 +68,35 @@ CREATE TABLE alunos (
     KEY idx_alunos_turma (turma_id),
 
     CONSTRAINT fk_alunos_turma
+        FOREIGN KEY (turma_id)
+        REFERENCES turmas(id)
+        ON DELETE SET NULL
+        ON UPDATE CASCADE
+
+) ENGINE=InnoDB
+DEFAULT CHARSET=utf8mb4
+COLLATE=utf8mb4_unicode_ci;
+
+
+-- ============================================================
+-- TABELA: PROFESSORES
+-- ============================================================
+
+CREATE TABLE professores (
+    id INT NOT NULL AUTO_INCREMENT,
+    nome VARCHAR(150) NOT NULL,
+    email VARCHAR(150) DEFAULT NULL,
+    telefone VARCHAR(20) DEFAULT NULL,
+    disciplina VARCHAR(100) DEFAULT NULL,
+    turma_id INT DEFAULT NULL,
+
+    PRIMARY KEY (id),
+
+    UNIQUE KEY uk_professor_email (email),
+
+    KEY idx_professores_turma (turma_id),
+
+    CONSTRAINT fk_professores_turma
         FOREIGN KEY (turma_id)
         REFERENCES turmas(id)
         ON DELETE SET NULL

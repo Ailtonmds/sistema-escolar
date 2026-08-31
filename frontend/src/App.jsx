@@ -64,7 +64,7 @@ import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import HowToRegIcon from '@mui/icons-material/HowToReg';
 import Slide from '@mui/material/Slide';
 
-const API_BASE_URL = 'http://localhost:3000';
+const API_BASE_URL = '';
 const drawerWidth = 260;
 
 const theme = createTheme({
@@ -99,6 +99,7 @@ const initialForm = {
   email: '',
   data_nascimento: '',
   serie: '',
+  turma_id: '',
   cpf: '',
   telefone: '',
   endereco: '',
@@ -113,28 +114,41 @@ const initialTurmaForm = {
 const initialNotaForm = {
   aluno_id: '',
   disciplina: '',
-  bimestre: '1º Bimestre',
+  bimestre: 1,
   nota: '',
 };
 
 const initialFrequenciaForm = {
   aluno_id: '',
-  data: new Date().toISOString().split('T')[0],
-  presente: 'Sim',
+  data_aula: new Date().toISOString().split('T')[0],
+  presente: true,
 };
 
 const menuItems = [
   { key: 'dashboard', label: 'Início', description: 'Visão geral do sistema', icon: <DashboardIcon /> },
   { key: 'alunos', label: 'Alunos', description: 'Cadastro e consulta de estudantes', icon: <PeopleIcon /> },
-  { key: 'professores', label: 'Professores', description: 'Gestão da equipe', icon: <SupervisorAccountIcon /> },
   { key: 'turmas', label: 'Turmas', description: 'Organização escolar', icon: <ClassIcon /> },
+  { key: 'disciplinas', label: 'Disciplinas', description: 'Matérias e currículo', icon: <MenuBookIcon /> },
   { key: 'notas', label: 'Notas / Boletim', description: 'Lançamento e consulta de notas', icon: <AssessmentIcon /> },
   { key: 'frequencia', label: 'Chamada', description: 'Registro de frequência dos alunos', icon: <HowToRegIcon /> },
+  { key: 'professores', label: 'Professores', description: 'Gestão da equipe', icon: <SupervisorAccountIcon /> },
   { key: 'financeiro', label: 'Financeiro', description: 'Mensalidades e contas', icon: <AttachMoneyIcon /> },
   { key: 'relatorios', label: 'Relatórios', description: 'Indicadores da escola', icon: <BarChartIcon /> },
 ];
 
+const initialDisciplinaForm = {
+  nome: '',
+  descricao: '',
+};
+
 const seriesOptions = ['1º Ano', '2º Ano', '3º Ano', '4º Ano', '5º Ano'];
+
+const bimestreMap = {
+  1: '1° Bimestre',
+  2: '2° Bimestre',
+  3: '3° Bimestre',
+  4: '4° Bimestre',
+};
 
 function getInitials(nome = '') {
   return nome
@@ -268,6 +282,11 @@ function App() {
   const [frequenciaForm, setFrequenciaForm] = useState(initialFrequenciaForm);
   const [frequencias, setFrequencias] = useState([]);
 
+  const [disciplinaForm, setDisciplinaForm] = useState(initialDisciplinaForm);
+  const [disciplinas, setDisciplinas] = useState([]);
+  const [editingDisciplinaId, setEditingDisciplinaId] = useState(null);
+  const [searchDisciplina, setSearchDisciplina] = useState('');
+
   const [view, setView] = useState('dashboard');
   const [loggedIn, setLoggedIn] = useState(false);
   const [loginForm, setLoginForm] = useState({ usuario: '', senha: '' });
@@ -322,12 +341,23 @@ function App() {
     }
   };
 
+  const carregarDisciplinas = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/disciplinas`);
+      if (!response.ok) throw new Error('Erro ao carregar disciplinas');
+      setDisciplinas(await response.json());
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
   useEffect(() => {
     if (loggedIn) {
       carregarAlunos();
       carregarTurmas();
       carregarNotas();
       carregarFrequencias();
+      carregarDisciplinas();
     }
   }, [loggedIn]);
 
@@ -336,18 +366,19 @@ function App() {
   const handleNotaChange = (e) => setNotaForm({ ...notaForm, [e.target.name]: e.target.value });
   const handleFrequenciaChange = (e) => setFrequenciaForm({ ...frequenciaForm, [e.target.name]: e.target.value });
   const handleLoginChange = (e) => setLoginForm({ ...loginForm, [e.target.name]: e.target.value });
+  const handleDisciplinaChange = (e) => setDisciplinaForm({ ...disciplinaForm, [e.target.name]: e.target.value });
 
   const criarFrequenciaLocal = () => ({
     id: Date.now(),
     aluno_id: parseInt(frequenciaForm.aluno_id),
-    data: frequenciaForm.data,
+    data_aula: frequenciaForm.data_aula,
     presente: frequenciaForm.presente,
   });
 
   const handleFrequenciaSubmit = async (event) => {
     event.preventDefault();
 
-    if (!frequenciaForm.aluno_id || !frequenciaForm.data || !frequenciaForm.presente) {
+    if (!frequenciaForm.aluno_id || !frequenciaForm.data_aula) {
       notify('Preencha todos os campos da chamada.', 'error');
       return;
     }
@@ -357,8 +388,9 @@ function App() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          ...frequenciaForm,
           aluno_id: parseInt(frequenciaForm.aluno_id),
+          data_aula: frequenciaForm.data_aula,
+          presente: frequenciaForm.presente,
         }),
       });
 
@@ -372,14 +404,14 @@ function App() {
 
       setFrequenciaForm({
         ...initialFrequenciaForm,
-        data: frequenciaForm.data,
+        data_aula: frequenciaForm.data_aula,
       });
     } catch (error) {
       setFrequencias((prev) => [...prev, criarFrequenciaLocal()]);
       notify('Frequência registrada com sucesso! (modo local)', 'warning');
       setFrequenciaForm({
         ...initialFrequenciaForm,
-        data: frequenciaForm.data,
+        data_aula: frequenciaForm.data_aula,
       });
     }
   };
@@ -458,9 +490,8 @@ function App() {
   };
 
   const alunosFiltrados = alunos.filter((aluno) =>
-    Object.values(aluno).some((val) =>
-      String(val).toLowerCase().includes(searchAluno.toLowerCase())
-    )
+    [aluno.nome, aluno.email, aluno.serie, aluno.cpf, aluno.telefone, aluno.endereco]
+      .some((val) => String(val).toLowerCase().includes(searchAluno.toLowerCase()))
   );
 
   // CRUD TURMAS
@@ -470,10 +501,16 @@ function App() {
       const method = editingTurmaId ? 'PUT' : 'POST';
       const url = editingTurmaId ? `${API_BASE_URL}/api/turmas/${editingTurmaId}` : `${API_BASE_URL}/api/turmas`;
 
+      const body = {
+        nome: turmaForm.nome,
+        serie: turmaForm.serie,
+        ano: parseInt(turmaForm.ano, 10),
+      };
+
       const response = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(turmaForm),
+        body: JSON.stringify(body),
       });
 
       if (!response.ok) {
@@ -491,7 +528,7 @@ function App() {
   };
 
   const handleEditTurma = (turma) => {
-    setTurmaForm(turma);
+    setTurmaForm({ nome: turma.nome, serie: turma.serie, ano: turma.ano });
     setEditingTurmaId(turma.id);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -515,8 +552,66 @@ function App() {
   };
 
   const turmasFiltradas = turmas.filter((turma) =>
-    Object.values(turma).some((val) =>
-      String(val).toLowerCase().includes(searchTurma.toLowerCase())
+    [turma.nome, turma.serie, String(turma.ano)]
+      .some((val) => String(val).toLowerCase().includes(searchTurma.toLowerCase()))
+  );
+
+  // CRUD DISCIPLINAS
+  const handleDisciplinaSubmit = async (event) => {
+    event.preventDefault();
+    try {
+      const method = editingDisciplinaId ? 'PUT' : 'POST';
+      const url = editingDisciplinaId
+        ? `${API_BASE_URL}/api/disciplinas/${editingDisciplinaId}`
+        : `${API_BASE_URL}/api/disciplinas`;
+
+      const response = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(disciplinaForm),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+        throw new Error(errorData?.message || 'Erro ao salvar disciplina');
+      }
+
+      notify(editingDisciplinaId ? 'Disciplina atualizada com sucesso!' : 'Disciplina cadastrada com sucesso!');
+      setDisciplinaForm(initialDisciplinaForm);
+      setEditingDisciplinaId(null);
+      carregarDisciplinas();
+    } catch (error) {
+      notify(error.message, 'error');
+    }
+  };
+
+  const handleEditDisciplina = (disciplina) => {
+    setDisciplinaForm({ nome: disciplina.nome, descricao: disciplina.descricao || '' });
+    setEditingDisciplinaId(disciplina.id);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const askDeleteDisciplina = (id) => {
+    setPendingDelete({
+      title: 'Excluir disciplina',
+      description: 'Esta ação não pode ser desfeita. Deseja realmente excluir esta disciplina?',
+      action: async () => {
+        try {
+          const response = await fetch(`${API_BASE_URL}/api/disciplinas/${id}`, { method: 'DELETE' });
+          if (!response.ok) throw new Error('Erro ao excluir disciplina');
+          notify('Disciplina excluída com sucesso!');
+          carregarDisciplinas();
+        } catch (error) {
+          setDisciplinas((prev) => prev.filter((d) => d.id !== id));
+          notify('Disciplina excluída (modo local).', 'warning');
+        }
+      },
+    });
+  };
+
+  const disciplinasFiltradas = disciplinas.filter((d) =>
+    [d.nome, d.descricao].some((val) =>
+      String(val || '').toLowerCase().includes(searchDisciplina.toLowerCase())
     )
   );
 
@@ -524,8 +619,8 @@ function App() {
   const criarNotaLocal = () => ({
     id: Date.now(),
     aluno_id: parseInt(notaForm.aluno_id),
-    disciplina: notaForm.disciplina,
-    bimestre: notaForm.bimestre,
+    disciplina: parseInt(notaForm.disciplina),
+    bimestre: parseInt(notaForm.bimestre),
     nota: parseFloat(notaForm.nota),
   });
 
@@ -550,6 +645,8 @@ function App() {
         body: JSON.stringify({
           ...notaForm,
           aluno_id: parseInt(notaForm.aluno_id),
+          disciplina: parseInt(notaForm.disciplina),
+          bimestre: parseInt(notaForm.bimestre),
           nota: valorNota,
         }),
       });
@@ -677,7 +774,7 @@ function App() {
                 {alunoObj ? alunoObj.nome : 'Aluno não localizado'}
               </Typography>
               <Typography variant="body2" color="text.secondary" noWrap>
-                {item.disciplina} • {item.bimestre}
+                {disciplinas.find((d) => d.id === item.disciplina)?.nome || item.disciplina} • {bimestreMap[item.bimestre] || item.bimestre}
               </Typography>
             </Box>
           </Box>
@@ -974,8 +1071,32 @@ function App() {
                             <TextField fullWidth label="Data de nascimento" name="data_nascimento" type="date" value={form.data_nascimento} onChange={handleChange} InputLabelProps={{ shrink: true }} required />
                           </Grid>
                           <Grid item xs={12} md={6}>
-                            <TextField select fullWidth label="Série" name="serie" value={form.serie} onChange={handleChange} required>
-                              {seriesOptions.map((s) => <MenuItem key={s} value={s}>{s}</MenuItem>)}
+                            <TextField
+                              select
+                              fullWidth
+                              label="Turma / Série"
+                              name="turma_id"
+                              value={form.turma_id || ''}
+                              onChange={(e) => {
+                                const turmaId = e.target.value;
+                                const turmaEncontrada = turmas.find((t) => String(t.id) === String(turmaId));
+                                setForm({
+                                  ...form,
+                                  turma_id: turmaId,
+                                  serie: turmaEncontrada ? turmaEncontrada.serie : '',
+                                });
+                              }}
+                              required
+                            >
+                              {turmas.length === 0 ? (
+                                <MenuItem disabled value="">Nenhuma turma cadastrada</MenuItem>
+                              ) : (
+                                turmas.map((t) => (
+                                  <MenuItem key={t.id} value={t.id}>
+                                    {t.nome} ({t.serie} - {t.ano})
+                                  </MenuItem>
+                                ))
+                              )}
                             </TextField>
                           </Grid>
                           <Grid item xs={12} md={4}>
@@ -1019,7 +1140,7 @@ function App() {
                               <TableRow>
                                 <TableCell sx={{ fontWeight: 700 }}>Aluno</TableCell>
                                 <TableCell sx={{ fontWeight: 700 }}>E-mail</TableCell>
-                                <TableCell sx={{ fontWeight: 700 }}>Série</TableCell>
+                                <TableCell sx={{ fontWeight: 700 }}>Turma</TableCell>
                                 <TableCell align="right" sx={{ fontWeight: 700 }}>Ações</TableCell>
                               </TableRow>
                             </TableHead>
@@ -1036,7 +1157,7 @@ function App() {
                                   </TableCell>
                                   <TableCell color="text.secondary">{aluno.email}</TableCell>
                                   <TableCell>
-                                    <Chip label={aluno.serie || '—'} size="small" variant="outlined" sx={{ borderColor: 'grey.300' }} />
+                                    <Chip label={turmas.find((t) => t.id === aluno.turma_id)?.nome || aluno.serie || '—'} size="small" variant="outlined" sx={{ borderColor: 'grey.300' }} />
                                   </TableCell>
                                   <TableCell align="right">
                                     <Tooltip title="Editar">
@@ -1162,6 +1283,104 @@ function App() {
                   </Box>
                 )}
 
+                {/* DISCIPLINAS */}
+                {view === 'disciplinas' && (
+                  <Box>
+                    <Stack direction="row" justifyContent="space-between" alignItems="center" flexWrap="wrap" gap={1.5} sx={{ mb: 2.5 }}>
+                      <Box>
+                        <Typography variant="h5">Cadastro de Disciplinas</Typography>
+                        {editingDisciplinaId && (
+                          <Chip
+                            size="small"
+                            icon={<EditIcon />}
+                            label="Modo edição"
+                            onDelete={() => { setEditingDisciplinaId(null); setDisciplinaForm(initialDisciplinaForm); }}
+                            color="primary"
+                            variant="outlined"
+                            sx={{ mt: 1, fontWeight: 600 }}
+                          />
+                        )}
+                      </Box>
+                    </Stack>
+
+                    <SectionCard title={editingDisciplinaId ? 'Editar disciplina' : 'Nova disciplina'}>
+                      <form onSubmit={handleDisciplinaSubmit}>
+                        <Grid container spacing={2.5}>
+                          <Grid item xs={12} md={5}>
+                            <TextField fullWidth label="Nome da Disciplina" name="nome" value={disciplinaForm.nome} onChange={handleDisciplinaChange} placeholder="Ex.: Matematica" required />
+                          </Grid>
+                          <Grid item xs={12} md={7}>
+                            <TextField fullWidth label="Descrição (opcional)" name="descricao" value={disciplinaForm.descricao} onChange={handleDisciplinaChange} placeholder="Ex.: Algebra, geometria e aritmetica" />
+                          </Grid>
+                        </Grid>
+
+                        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mt: 3 }}>
+                          <Button type="submit" variant="contained" startIcon={<AddIcon />} sx={{ px: 4, py: 1.1, borderRadius: 3 }}>
+                            {editingDisciplinaId ? 'Atualizar disciplina' : 'Salvar disciplina'}
+                          </Button>
+                          <Button
+                            variant="text"
+                            color="inherit"
+                            sx={{ px: 3, borderRadius: 3 }}
+                            startIcon={<CloseIcon />}
+                            onClick={() => { setDisciplinaForm(initialDisciplinaForm); setEditingDisciplinaId(null); }}
+                          >
+                            {editingDisciplinaId ? 'Cancelar edição' : 'Limpar'}
+                          </Button>
+                        </Stack>
+                      </form>
+                    </SectionCard>
+
+                    <SectionCard
+                      title={`Disciplinas Cadastradas (${disciplinasFiltradas.length})`}
+                      action={<SearchField placeholder="Pesquisar disciplina..." value={searchDisciplina} onChange={(e) => setSearchDisciplina(e.target.value)} />}
+                    >
+                      {disciplinasFiltradas.length === 0 ? (
+                        <EmptyState icon={<MenuBookIcon />} text="Nenhuma disciplina encontrada." />
+                      ) : (
+                        <TableContainer sx={{ borderRadius: 3, border: '1px solid', borderColor: 'grey.200' }}>
+                          <Table size="small">
+                            <TableHead sx={{ bgcolor: 'grey.50' }}>
+                              <TableRow>
+                                <TableCell sx={{ fontWeight: 700 }}>Disciplina</TableCell>
+                                <TableCell sx={{ fontWeight: 700 }}>Descrição</TableCell>
+                                <TableCell align="right" sx={{ fontWeight: 700 }}>Ações</TableCell>
+                              </TableRow>
+                            </TableHead>
+                            <TableBody>
+                              {disciplinasFiltradas.map((disciplina) => (
+                                <TableRow key={disciplina.id} hover sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
+                                  <TableCell>
+                                    <Stack direction="row" spacing={1.5} alignItems="center">
+                                      <Avatar sx={{ width: 34, height: 34, bgcolor: 'rgba(6,182,212,0.12)', color: 'secondary.main', fontSize: 13, fontWeight: 700 }}>
+                                        <MenuBookIcon fontSize="small" />
+                                      </Avatar>
+                                      <Typography fontWeight={600}>{disciplina.nome}</Typography>
+                                    </Stack>
+                                  </TableCell>
+                                  <TableCell color="text.secondary">{disciplina.descricao || '—'}</TableCell>
+                                  <TableCell align="right">
+                                    <Tooltip title="Editar">
+                                      <IconButton color="primary" onClick={() => handleEditDisciplina(disciplina)} size="small" sx={{ mr: 0.5 }}>
+                                        <EditIcon fontSize="small" />
+                                      </IconButton>
+                                    </Tooltip>
+                                    <Tooltip title="Excluir">
+                                      <IconButton color="error" onClick={() => askDeleteDisciplina(disciplina.id)} size="small">
+                                        <DeleteIcon fontSize="small" />
+                                      </IconButton>
+                                    </Tooltip>
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </TableContainer>
+                      )}
+                    </SectionCard>
+                  </Box>
+                )}
+
                 {/* NOTAS */}
                 {view === 'notas' && (
                   <Box>
@@ -1182,14 +1401,20 @@ function App() {
                             </TextField>
                           </Grid>
                           <Grid item xs={12} md={3}>
-                            <TextField fullWidth label="Disciplina" name="disciplina" value={notaForm.disciplina} onChange={handleNotaChange} placeholder="Ex.: Front-End" required />
+                            <TextField select fullWidth label="Disciplina" name="disciplina" value={notaForm.disciplina} onChange={handleNotaChange} required>
+                              {disciplinas.length === 0 ? (
+                                <MenuItem disabled value="">Nenhuma disciplina cadastrada</MenuItem>
+                              ) : (
+                                disciplinas.map((d) => <MenuItem key={d.id} value={d.id}>{d.nome}</MenuItem>)
+                              )}
+                            </TextField>
                           </Grid>
                           <Grid item xs={12} md={3}>
                             <TextField select fullWidth label="Bimestre" name="bimestre" value={notaForm.bimestre} onChange={handleNotaChange} required>
-                              <MenuItem value="1º Bimestre">1º Bimestre</MenuItem>
-                              <MenuItem value="2º Bimestre">2º Bimestre</MenuItem>
-                              <MenuItem value="3º Bimestre">3º Bimestre</MenuItem>
-                              <MenuItem value="4º Bimestre">4º Bimestre</MenuItem>
+                              <MenuItem value={1}>1° Bimestre</MenuItem>
+                              <MenuItem value={2}>2° Bimestre</MenuItem>
+                              <MenuItem value={3}>3° Bimestre</MenuItem>
+                              <MenuItem value={4}>4° Bimestre</MenuItem>
                             </TextField>
                           </Grid>
                           <Grid item xs={12} md={2}>
@@ -1301,9 +1526,9 @@ function App() {
                             <TextField
                               fullWidth
                               label="Data"
-                              name="data"
+                              name="data_aula"
                               type="date"
-                              value={frequenciaForm.data}
+                              value={frequenciaForm.data_aula}
                               onChange={handleFrequenciaChange}
                               InputLabelProps={{ shrink: true }}
                               required
@@ -1317,11 +1542,11 @@ function App() {
                               label="Presente"
                               name="presente"
                               value={frequenciaForm.presente}
-                              onChange={handleFrequenciaChange}
+                              onChange={(e) => setFrequenciaForm({ ...frequenciaForm, presente: e.target.value === 'true' })}
                               required
                             >
-                              <MenuItem value="Sim">Sim</MenuItem>
-                              <MenuItem value="Não">Não</MenuItem>
+                              <MenuItem value="true">Sim</MenuItem>
+                              <MenuItem value="false">Não</MenuItem>
                             </TextField>
                           </Grid>
                         </Grid>
@@ -1397,7 +1622,7 @@ function App() {
                                         </Typography>
                                       </Stack>
                                     </TableCell>
-                                    <TableCell>{formatarData(registro.data)}</TableCell>
+                                    <TableCell>{formatarData(registro.data_aula || registro.data)}</TableCell>
                                     <TableCell>
                                       <Chip
                                         label={presente ? 'Sim' : 'Não'}
