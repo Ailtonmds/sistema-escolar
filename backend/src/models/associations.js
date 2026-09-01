@@ -4,6 +4,7 @@ import Nota from './Nota.js';
 import Frequencia from './Frequencia.js';
 import Disciplina from './Disciplina.js';
 import Professor from './Professor.js';
+import ProfessorDisciplina from './ProfessorDisciplina.js';
 
 Turma.hasMany(Professor, {
   as: 'professores',
@@ -59,4 +60,18 @@ Frequencia.belongsTo(Aluno, {
 Professor.belongsTo(Turma, {
   as: 'turma',
   foreignKey: 'turma_id'
+});
+
+Professor.belongsToMany(Disciplina, {
+  as: 'disciplinas',
+  through: ProfessorDisciplina,
+  foreignKey: 'professor_id',
+  otherKey: 'disciplina_id'
+});
+
+Disciplina.belongsToMany(Professor, {
+  as: 'professores',
+  through: ProfessorDisciplina,
+  foreignKey: 'disciplina_id',
+  otherKey: 'professor_id'
 });

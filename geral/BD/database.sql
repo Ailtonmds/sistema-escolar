@@ -17,6 +17,7 @@ USE sistema_escolar;
 
 SET FOREIGN_KEY_CHECKS = 0;
 
+DROP TABLE IF EXISTS professor_disciplinas;
 DROP TABLE IF EXISTS frequencias;
 DROP TABLE IF EXISTS notas;
 DROP TABLE IF EXISTS aluno_disciplinas;
@@ -87,7 +88,6 @@ CREATE TABLE professores (
     nome VARCHAR(150) NOT NULL,
     email VARCHAR(150) DEFAULT NULL,
     telefone VARCHAR(20) DEFAULT NULL,
-    disciplina VARCHAR(100) DEFAULT NULL,
     turma_id INT DEFAULT NULL,
 
     PRIMARY KEY (id),
@@ -119,6 +119,44 @@ CREATE TABLE disciplinas (
     PRIMARY KEY (id),
 
     UNIQUE KEY uk_disciplina_nome (nome)
+
+) ENGINE=InnoDB
+DEFAULT CHARSET=utf8mb4
+COLLATE=utf8mb4_unicode_ci;
+
+
+-- ============================================================
+-- TABELA: PROFESSOR_DISCIPLINAS
+--
+-- Relacionamento N:N entre professores e disciplinas
+-- ============================================================
+
+CREATE TABLE professor_disciplinas (
+    id INT NOT NULL AUTO_INCREMENT,
+    professor_id INT NOT NULL,
+    disciplina_id INT NOT NULL,
+
+    PRIMARY KEY (id),
+
+    UNIQUE KEY uk_professor_disciplina (
+        professor_id,
+        disciplina_id
+    ),
+
+    KEY idx_professor_disciplinas_professor (professor_id),
+    KEY idx_professor_disciplinas_disciplina (disciplina_id),
+
+    CONSTRAINT fk_professor_disciplinas_professor
+        FOREIGN KEY (professor_id)
+        REFERENCES professores(id)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE,
+
+    CONSTRAINT fk_professor_disciplinas_disciplina
+        FOREIGN KEY (disciplina_id)
+        REFERENCES disciplinas(id)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE
 
 ) ENGINE=InnoDB
 DEFAULT CHARSET=utf8mb4
@@ -306,6 +344,48 @@ VALUES
     (2, 2),
     (2, 4),
     (2, 5);
+
+
+-- ============================================================
+-- PROFESSORES DE EXEMPLO
+-- ============================================================
+
+INSERT INTO professores
+    (nome, email, telefone, turma_id)
+VALUES
+    (
+        'Carlos Mendes',
+        'carlos.mendes@escola.com',
+        '(11) 99999-0001',
+        1
+    ),
+    (
+        'Ana Oliveira',
+        'ana.oliveira@escola.com',
+        '(11) 99999-0002',
+        2
+    ),
+    (
+        'Ricardo Souza',
+        'ricardo.souza@escola.com',
+        '(11) 99999-0003',
+        NULL
+    );
+
+
+-- ============================================================
+-- VÍNCULO PROFESSOR x DISCIPLINA
+-- ============================================================
+
+INSERT INTO professor_disciplinas
+    (professor_id, disciplina_id)
+VALUES
+    (1, 4),
+    (1, 5),
+    (2, 1),
+    (2, 3),
+    (3, 2),
+    (3, 6);
 
 
 -- ============================================================
@@ -503,6 +583,31 @@ ORDER BY
     a.nome,
     d.nome,
     n.bimestre;
+
+
+-- ------------------------------------------------------------
+-- LISTAR PROFESSORES COM SUAS DISCIPLINAS E TURMA
+-- ------------------------------------------------------------
+
+SELECT
+    p.id,
+    p.nome,
+    p.email,
+    t.nome AS turma,
+    GROUP_CONCAT(d.nome ORDER BY d.nome SEPARATOR ', ') AS disciplinas
+FROM professores p
+LEFT JOIN turmas t
+    ON t.id = p.turma_id
+LEFT JOIN professor_disciplinas pd
+    ON pd.professor_id = p.id
+LEFT JOIN disciplinas d
+    ON d.id = pd.disciplina_id
+GROUP BY
+    p.id,
+    p.nome,
+    p.email,
+    t.nome
+ORDER BY p.nome;
 
 
 -- ============================================================

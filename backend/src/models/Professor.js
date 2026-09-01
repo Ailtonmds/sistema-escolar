@@ -18,10 +18,6 @@ Professor.init(
       type: DataTypes.STRING(20),
       allowNull: true
     },
-    disciplina: {
-      type: DataTypes.STRING(100),
-      allowNull: true
-    },
     turma_id: {
       type: DataTypes.INTEGER,
       allowNull: true

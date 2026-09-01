@@ -1,5 +1,6 @@
 import Professor from '../models/Professor.js';
 import Turma from '../models/Turma.js';
+import Disciplina from '../models/Disciplina.js';
 
 async function listarProfessores(req, res) {
   try {
@@ -9,6 +10,12 @@ async function listarProfessores(req, res) {
           model: Turma,
           as: 'turma',
           attributes: ['id', 'nome']
+        },
+        {
+          model: Disciplina,
+          as: 'disciplinas',
+          attributes: ['id', 'nome'],
+          through: { attributes: [] }
         }
       ],
       order: [['nome', 'ASC']]
@@ -22,7 +29,7 @@ async function listarProfessores(req, res) {
 
 async function cadastrarProfessor(req, res) {
   try {
-    const { nome, email, telefone, disciplina, turma_id } = req.body;
+    const { nome, email, telefone, turma_id, disciplina_ids } = req.body;
 
     if (!nome) {
       return res.status(400).json({ message: 'Nome do professor é obrigatório' });
@@ -32,12 +39,31 @@ async function cadastrarProfessor(req, res) {
       nome,
       email: email || null,
       telefone: telefone || null,
-      disciplina: disciplina || null,
       turma_id: turma_id || null
     });
 
-    console.log('Professor cadastrado:', professor.nome);
-    return res.status(201).json(professor);
+    if (Array.isArray(disciplina_ids) && disciplina_ids.length > 0) {
+      await professor.setDisciplinas(disciplina_ids);
+    }
+
+    const professorCompleto = await Professor.findByPk(professor.id, {
+      include: [
+        {
+          model: Turma,
+          as: 'turma',
+          attributes: ['id', 'nome']
+        },
+        {
+          model: Disciplina,
+          as: 'disciplinas',
+          attributes: ['id', 'nome'],
+          through: { attributes: [] }
+        }
+      ]
+    });
+
+    console.log('Professor cadastrado:', professorCompleto.nome);
+    return res.status(201).json(professorCompleto);
   } catch (erro) {
     console.error('Erro ao cadastrar professor:', erro);
     const status = erro.name === 'SequelizeUniqueConstraintError' ? 409 : 400;
@@ -54,9 +80,37 @@ async function atualizarProfessor(req, res) {
       return res.status(404).json({ message: 'Professor não encontrado' });
     }
 
-    await professor.update(req.body);
-    console.log('Professor atualizado:', professor.nome);
-    return res.status(200).json(professor);
+    const { nome, email, telefone, turma_id, disciplina_ids } = req.body;
+
+    await professor.update({
+      nome,
+      email: email || null,
+      telefone: telefone || null,
+      turma_id: turma_id || null
+    });
+
+    if (Array.isArray(disciplina_ids)) {
+      await professor.setDisciplinas(disciplina_ids);
+    }
+
+    const professorCompleto = await Professor.findByPk(id, {
+      include: [
+        {
+          model: Turma,
+          as: 'turma',
+          attributes: ['id', 'nome']
+        },
+        {
+          model: Disciplina,
+          as: 'disciplinas',
+          attributes: ['id', 'nome'],
+          through: { attributes: [] }
+        }
+      ]
+    });
+
+    console.log('Professor atualizado:', professorCompleto.nome);
+    return res.status(200).json(professorCompleto);
   } catch (erro) {
     console.error('Erro ao atualizar professor:', erro);
     const status = erro.name === 'SequelizeUniqueConstraintError' ? 409 : 400;

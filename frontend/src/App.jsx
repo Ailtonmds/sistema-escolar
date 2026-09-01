@@ -141,6 +141,14 @@ const initialDisciplinaForm = {
   descricao: '',
 };
 
+const initialProfessorForm = {
+  nome: '',
+  email: '',
+  telefone: '',
+  turma_id: '',
+  disciplina_ids: [],
+};
+
 const seriesOptions = ['1º Ano', '2º Ano', '3º Ano', '4º Ano', '5º Ano'];
 
 const bimestreMap = {
@@ -287,6 +295,11 @@ function App() {
   const [editingDisciplinaId, setEditingDisciplinaId] = useState(null);
   const [searchDisciplina, setSearchDisciplina] = useState('');
 
+  const [professorForm, setProfessorForm] = useState(initialProfessorForm);
+  const [professores, setProfessores] = useState([]);
+  const [editingProfessorId, setEditingProfessorId] = useState(null);
+  const [searchProfessor, setSearchProfessor] = useState('');
+
   const [view, setView] = useState('dashboard');
   const [loggedIn, setLoggedIn] = useState(false);
   const [loginForm, setLoginForm] = useState({ usuario: '', senha: '' });
@@ -351,6 +364,16 @@ function App() {
     }
   };
 
+  const carregarProfessores = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/professores`);
+      if (!response.ok) throw new Error('Erro ao carregar professores');
+      setProfessores(await response.json());
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
   useEffect(() => {
     if (loggedIn) {
       carregarAlunos();
@@ -358,6 +381,7 @@ function App() {
       carregarNotas();
       carregarFrequencias();
       carregarDisciplinas();
+      carregarProfessores();
     }
   }, [loggedIn]);
 
@@ -367,6 +391,7 @@ function App() {
   const handleFrequenciaChange = (e) => setFrequenciaForm({ ...frequenciaForm, [e.target.name]: e.target.value });
   const handleLoginChange = (e) => setLoginForm({ ...loginForm, [e.target.name]: e.target.value });
   const handleDisciplinaChange = (e) => setDisciplinaForm({ ...disciplinaForm, [e.target.name]: e.target.value });
+  const handleProfessorChange = (e) => setProfessorForm({ ...professorForm, [e.target.name]: e.target.value });
 
   const criarFrequenciaLocal = () => ({
     id: Date.now(),
@@ -613,6 +638,78 @@ function App() {
     [d.nome, d.descricao].some((val) =>
       String(val || '').toLowerCase().includes(searchDisciplina.toLowerCase())
     )
+  );
+
+  // CRUD PROFESSORES
+  const handleProfessorSubmit = async (event) => {
+    event.preventDefault();
+    try {
+      const method = editingProfessorId ? 'PUT' : 'POST';
+      const url = editingProfessorId
+        ? `${API_BASE_URL}/api/professores/${editingProfessorId}`
+        : `${API_BASE_URL}/api/professores`;
+
+      const body = {
+        nome: professorForm.nome,
+        email: professorForm.email,
+        telefone: professorForm.telefone,
+        turma_id: professorForm.turma_id ? parseInt(professorForm.turma_id, 10) : null,
+        disciplina_ids: professorForm.disciplina_ids.map(Number),
+      };
+
+      const response = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+        throw new Error(errorData?.message || 'Erro ao salvar professor');
+      }
+
+      notify(editingProfessorId ? 'Professor atualizado com sucesso!' : 'Professor cadastrado com sucesso!');
+      setProfessorForm(initialProfessorForm);
+      setEditingProfessorId(null);
+      carregarProfessores();
+    } catch (error) {
+      notify(error.message, 'error');
+    }
+  };
+
+  const handleEditProfessor = (professor) => {
+    setProfessorForm({
+      nome: professor.nome,
+      email: professor.email || '',
+      telefone: professor.telefone || '',
+      turma_id: professor.turma_id ? String(professor.turma_id) : '',
+      disciplina_ids: (professor.disciplinas || []).map((d) => d.id),
+    });
+    setEditingProfessorId(professor.id);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const askDeleteProfessor = (id) => {
+    setPendingDelete({
+      title: 'Excluir professor',
+      description: 'Esta ação não pode ser desfeita. Deseja realmente excluir este professor?',
+      action: async () => {
+        try {
+          const response = await fetch(`${API_BASE_URL}/api/professores/${id}`, { method: 'DELETE' });
+          if (!response.ok) throw new Error('Erro ao excluir professor');
+          notify('Professor excluído com sucesso!');
+          carregarProfessores();
+        } catch (error) {
+          setProfessores((prev) => prev.filter((p) => p.id !== id));
+          notify('Professor excluído (modo local).', 'warning');
+        }
+      },
+    });
+  };
+
+  const professoresFiltrados = professores.filter((p) =>
+    [p.nome, p.email, p.telefone]
+      .some((val) => String(val || '').toLowerCase().includes(searchProfessor.toLowerCase()))
   );
 
   // CADASTRO DE NOTA
@@ -925,7 +1022,7 @@ function App() {
                 <AnalyticsIcon sx={{ color: '#67e8f9' }} />
                 <Box>
                   <Typography variant="body2" fontWeight={700} color="#f1f5f9">
-                    {totalAlunos} alunos • {totalTurmas} turmas
+                    {totalAlunos} alunos • {totalTurmas} turmas • {professores.length} professores
                   </Typography>
                   <Typography variant="caption" color="#94a3b8">
                     Resumo em tempo real
@@ -1643,8 +1740,182 @@ function App() {
                   </Box>
                 )}
 
+                {/* PROFESSORES */}
+                {view === 'professores' && (
+                  <Box>
+                    <Stack direction="row" justifyContent="space-between" alignItems="center" flexWrap="wrap" gap={1.5} sx={{ mb: 2.5 }}>
+                      <Box>
+                        <Typography variant="h5">Cadastro de Professores</Typography>
+                        {editingProfessorId && (
+                          <Chip
+                            size="small"
+                            icon={<EditIcon />}
+                            label="Modo edição"
+                            onDelete={() => { setEditingProfessorId(null); setProfessorForm(initialProfessorForm); }}
+                            color="primary"
+                            variant="outlined"
+                            sx={{ mt: 1, fontWeight: 600 }}
+                          />
+                        )}
+                      </Box>
+                    </Stack>
+
+                    <SectionCard title={editingProfessorId ? 'Editar dados do professor' : 'Novo professor'}>
+                      <form onSubmit={handleProfessorSubmit}>
+                        <Grid container spacing={2.5}>
+                          <Grid item xs={12} md={6}>
+                            <TextField fullWidth label="Nome" name="nome" value={professorForm.nome} onChange={handleProfessorChange} placeholder="Ex.: Maria Souza" required />
+                          </Grid>
+                          <Grid item xs={12} md={6}>
+                            <TextField fullWidth label="E-mail" name="email" type="email" value={professorForm.email} onChange={handleProfessorChange} placeholder="exemplo@escola.com" required />
+                          </Grid>
+                          <Grid item xs={12} md={6}>
+                            <TextField fullWidth label="Telefone" name="telefone" value={professorForm.telefone} onChange={handleProfessorChange} placeholder="(11) 99999-0000" />
+                          </Grid>
+                          <Grid item xs={12} md={6}>
+                            <TextField
+                              select
+                              fullWidth
+                              label="Turma (opcional)"
+                              name="turma_id"
+                              value={professorForm.turma_id || ''}
+                              onChange={handleProfessorChange}
+                            >
+                              <MenuItem value="">Sem turma</MenuItem>
+                              {turmas.map((t) => (
+                                <MenuItem key={t.id} value={t.id}>
+                                  {t.nome} ({t.serie} - {t.ano})
+                                </MenuItem>
+                              ))}
+                            </TextField>
+                          </Grid>
+                          <Grid item xs={12}>
+                            <TextField
+                              select
+                              fullWidth
+                              label="Disciplinas"
+                              name="disciplina_ids"
+                              value={professorForm.disciplina_ids}
+                              onChange={(e) =>
+                                setProfessorForm({ ...professorForm, disciplina_ids: e.target.value })
+                              }
+                              SelectProps={{ multiple: true, renderValue: (selected) => (
+                                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                                  {selected.map((id) => {
+                                    const disc = disciplinas.find((d) => d.id === Number(id));
+                                    return (
+                                      <Chip
+                                        key={id}
+                                        size="small"
+                                        label={disc ? disc.nome : id}
+                                        sx={{ bgcolor: 'rgba(79,70,229,0.1)', color: 'primary.main', fontWeight: 600 }}
+                                      />
+                                    );
+                                  })}
+                                </Box>
+                              )}}
+                            >
+                              {disciplinas.length === 0 ? (
+                                <MenuItem disabled value="">Nenhuma disciplina cadastrada</MenuItem>
+                              ) : (
+                                disciplinas.map((d) => (
+                                  <MenuItem key={d.id} value={d.id}>
+                                    {d.nome}
+                                  </MenuItem>
+                                ))
+                              )}
+                            </TextField>
+                          </Grid>
+                        </Grid>
+
+                        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mt: 3 }}>
+                          <Button type="submit" variant="contained" startIcon={<AddIcon />} sx={{ px: 4, py: 1.1, borderRadius: 3 }}>
+                            {editingProfessorId ? 'Atualizar professor' : 'Salvar professor'}
+                          </Button>
+                          <Button
+                            variant="text"
+                            color="inherit"
+                            sx={{ px: 3, borderRadius: 3 }}
+                            startIcon={<CloseIcon />}
+                            onClick={() => { setProfessorForm(initialProfessorForm); setEditingProfessorId(null); }}
+                          >
+                            {editingProfessorId ? 'Cancelar edição' : 'Limpar'}
+                          </Button>
+                        </Stack>
+                      </form>
+                    </SectionCard>
+
+                    <SectionCard
+                      title={`Professores Cadastrados (${professoresFiltrados.length})`}
+                      action={<SearchField placeholder="Pesquisar professor..." value={searchProfessor} onChange={(e) => setSearchProfessor(e.target.value)} />}
+                    >
+                      {professoresFiltrados.length === 0 ? (
+                        <EmptyState icon={<SupervisorAccountIcon />} text="Nenhum professor encontrado." />
+                      ) : (
+                        <TableContainer sx={{ borderRadius: 3, border: '1px solid', borderColor: 'grey.200' }}>
+                          <Table size="small">
+                            <TableHead sx={{ bgcolor: 'grey.50' }}>
+                              <TableRow>
+                                <TableCell sx={{ fontWeight: 700 }}>Professor</TableCell>
+                                <TableCell sx={{ fontWeight: 700 }}>Contato</TableCell>
+                                <TableCell sx={{ fontWeight: 700 }}>Turma</TableCell>
+                                <TableCell sx={{ fontWeight: 700 }}>Disciplinas</TableCell>
+                                <TableCell align="right" sx={{ fontWeight: 700 }}>Ações</TableCell>
+                              </TableRow>
+                            </TableHead>
+                            <TableBody>
+                              {professoresFiltrados.map((professor) => (
+                                <TableRow key={professor.id} hover sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
+                                  <TableCell>
+                                    <Stack direction="row" spacing={1.5} alignItems="center">
+                                      <Avatar sx={{ width: 34, height: 34, bgcolor: 'rgba(79,70,229,0.1)', color: 'primary.main', fontSize: 13, fontWeight: 700 }}>
+                                        {getInitials(professor.nome)}
+                                      </Avatar>
+                                      <Typography fontWeight={600}>{professor.nome}</Typography>
+                                    </Stack>
+                                  </TableCell>
+                                  <TableCell>
+                                    <Typography variant="body2">{professor.email || '—'}</Typography>
+                                    <Typography variant="caption" color="text.secondary">{professor.telefone || ''}</Typography>
+                                  </TableCell>
+                                  <TableCell>
+                                    <Chip label={turmas.find((t) => t.id === professor.turma_id)?.nome || professor.turma?.nome || '—'} size="small" variant="outlined" sx={{ borderColor: 'grey.300' }} />
+                                  </TableCell>
+                                  <TableCell>
+                                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, maxWidth: 280 }}>
+                                      {(professor.disciplinas || []).length === 0 ? (
+                                        <Typography variant="caption" color="text.secondary">—</Typography>
+                                      ) : (
+                                        professor.disciplinas.map((d) => (
+                                          <Chip key={d.id} size="small" label={d.nome} sx={{ bgcolor: 'rgba(6,182,212,0.1)', color: 'secondary.main', fontWeight: 600 }} />
+                                        ))
+                                      )}
+                                    </Box>
+                                  </TableCell>
+                                  <TableCell align="right">
+                                    <Tooltip title="Editar">
+                                      <IconButton color="primary" onClick={() => handleEditProfessor(professor)} size="small" sx={{ mr: 0.5 }}>
+                                        <EditIcon fontSize="small" />
+                                      </IconButton>
+                                    </Tooltip>
+                                    <Tooltip title="Excluir">
+                                      <IconButton color="error" onClick={() => askDeleteProfessor(professor.id)} size="small">
+                                        <DeleteIcon fontSize="small" />
+                                      </IconButton>
+                                    </Tooltip>
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </TableContainer>
+                      )}
+                    </SectionCard>
+                  </Box>
+                )}
+
                 {/* OUTRAS TELAS */}
-                {['professores', 'financeiro', 'relatorios'].includes(view) && (
+                {['financeiro', 'relatorios'].includes(view) && (
                   <Paper sx={{ p: 5, borderRadius: 5, textAlign: 'center' }}>
                     <Avatar sx={{ bgcolor: 'primary.50', color: 'primary.main', width: 64, height: 64, mx: 'auto', mb: 2 }}>
                       {menuItems.find((i) => i.key === view)?.icon}
