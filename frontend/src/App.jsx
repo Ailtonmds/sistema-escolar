@@ -61,6 +61,7 @@ import MenuBookIcon from '@mui/icons-material/MenuBook';
 import HowToRegIcon from '@mui/icons-material/HowToReg';
 
 const API_BASE_URL = '';
+const AUTH_TOKEN_KEY = 'escola_auth_token';
 
 const drawerWidth = 260;
 
@@ -352,9 +353,10 @@ function App() {
   const [view, setView] = useState('dashboard');
 
   const [loggedIn, setLoggedIn] = useState(false);
+  const [checkingSession, setCheckingSession] = useState(true);
 
   const [loginForm, setLoginForm] = useState({
-    usuario: '',
+    email: '',
     senha: '',
   });
 
@@ -538,6 +540,40 @@ function App() {
 
   useEffect(() => {
 
+    const restaurarSessao = async () => {
+      const token = localStorage.getItem(AUTH_TOKEN_KEY);
+
+      if (!token) {
+        setCheckingSession(false);
+        return;
+      }
+
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/auth/me`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (!response.ok) {
+          throw new Error('Sessão inválida');
+        }
+
+        const data = await response.json();
+        setAuthToken(token);
+        setProfessorLogado(data.professor);
+        setLoggedIn(true);
+      } catch (error) {
+        localStorage.removeItem(AUTH_TOKEN_KEY);
+      } finally {
+        setCheckingSession(false);
+      }
+    };
+
+    restaurarSessao();
+
+  }, []);
+
+  useEffect(() => {
+
     if (!loggedIn) return;
 
     carregarAlunos();
@@ -674,9 +710,9 @@ function App() {
 
     event.preventDefault();
 
-    if (!loginForm.usuario) {
+    if (!loginForm.email) {
       notify(
-        'Informe o usuário.',
+        'Informe o e-mail.',
         'error'
       );
 
@@ -703,7 +739,16 @@ function App() {
             'Content-Type': 'application/json',
           },
 
-          body: JSON.stringify(loginForm),
+          /*
+            A API atual identifica o professor pelo campo "usuario".
+            Enviamos o e-mail também e mantemos essa compatibilidade até
+            que o back-end passe a autenticar diretamente por e-mail.
+          */
+          body: JSON.stringify({
+            email: loginForm.email,
+            usuario: loginForm.email,
+            senha: loginForm.senha,
+          }),
         }
       );
 
@@ -728,6 +773,7 @@ function App() {
       */
 
       setAuthToken(data.token);
+      localStorage.setItem(AUTH_TOKEN_KEY, data.token);
 
       /*
         Salva professor.
@@ -741,11 +787,7 @@ function App() {
 
       setLoggedIn(true);
 
-      /*
-        Professor vai direto para chamada.
-      */
-
-      setView('chamada');
+      setView('dashboard');
 
       notify(
         'Login realizado com sucesso!'
@@ -771,6 +813,7 @@ function App() {
     setLoggedIn(false);
 
     setAuthToken(null);
+    localStorage.removeItem(AUTH_TOKEN_KEY);
 
     setProfessorLogado(null);
 
@@ -779,7 +822,7 @@ function App() {
     setView('dashboard');
 
     setLoginForm({
-      usuario: '',
+      email: '',
       senha: '',
     });
 
@@ -1148,6 +1191,11 @@ function App() {
 
               </Box>
 
+              {checkingSession ? (
+                <Typography color="text.secondary">
+                  Verificando sessão...
+                </Typography>
+              ) : (
               <form
                 onSubmit={
                   handleLoginSubmit
@@ -1161,10 +1209,11 @@ function App() {
 
                   <TextField
                     fullWidth
-                    label="Usuário"
-                    name="usuario"
+                    label="E-mail"
+                    name="email"
+                    type="email"
                     value={
-                      loginForm.usuario
+                      loginForm.email
                     }
                     onChange={
                       handleLoginChange
@@ -1204,6 +1253,7 @@ function App() {
                 </Stack>
 
               </form>
+              )}
 
               <Typography
                 variant="caption"
@@ -1373,7 +1423,7 @@ function App() {
                     {
                       getInitials(
                         professorLogado?.nome ||
-                        loginForm.usuario
+                        professorLogado?.email
                       ) || 'P'
                     }
                   </Avatar>
