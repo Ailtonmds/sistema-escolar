@@ -19,6 +19,7 @@ SET FOREIGN_KEY_CHECKS = 0;
 
 DROP TABLE IF EXISTS professor_disciplinas;
 DROP TABLE IF EXISTS frequencias;
+DROP TABLE IF EXISTS chamadas;
 DROP TABLE IF EXISTS notas;
 DROP TABLE IF EXISTS aluno_disciplinas;
 DROP TABLE IF EXISTS disciplinas;
@@ -88,11 +89,14 @@ CREATE TABLE professores (
     nome VARCHAR(150) NOT NULL,
     email VARCHAR(150) DEFAULT NULL,
     telefone VARCHAR(20) DEFAULT NULL,
+    usuario VARCHAR(50) DEFAULT NULL,
+    senha VARCHAR(100) DEFAULT NULL,
     turma_id INT DEFAULT NULL,
 
     PRIMARY KEY (id),
 
     UNIQUE KEY uk_professor_email (email),
+    UNIQUE KEY uk_professor_usuario (usuario),
 
     KEY idx_professores_turma (turma_id),
 
@@ -247,20 +251,70 @@ COLLATE=utf8mb4_unicode_ci;
 
 
 -- ============================================================
+-- TABELA: CHAMADAS
+--
+-- Cabeçalho da chamada lançada pelo professor logado
+-- (turma, disciplina, data, plano de aula e quantidade de aulas)
+-- ============================================================
+
+CREATE TABLE chamadas (
+    id INT NOT NULL AUTO_INCREMENT,
+    professor_id INT NOT NULL,
+    turma_id INT NOT NULL,
+    disciplina_id INT NOT NULL,
+    data_aula DATE NOT NULL,
+    quantidade_aulas INT NOT NULL DEFAULT 1,
+    titulo_plano VARCHAR(255) DEFAULT NULL,
+
+    PRIMARY KEY (id),
+
+    KEY idx_chamadas_professor (professor_id),
+    KEY idx_chamadas_turma (turma_id),
+    KEY idx_chamadas_disciplina (disciplina_id),
+
+    CONSTRAINT fk_chamadas_professor
+        FOREIGN KEY (professor_id)
+        REFERENCES professores(id)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE,
+
+    CONSTRAINT fk_chamadas_turma
+        FOREIGN KEY (turma_id)
+        REFERENCES turmas(id)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE,
+
+    CONSTRAINT fk_chamadas_disciplina
+        FOREIGN KEY (disciplina_id)
+        REFERENCES disciplinas(id)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE
+
+) ENGINE=InnoDB
+DEFAULT CHARSET=utf8mb4
+COLLATE=utf8mb4_unicode_ci;
+
+
+-- ============================================================
 -- TABELA: FREQUENCIAS
+--
+-- Registra a falta POR AULA (numero_aula) dentro de uma chamada
 -- ============================================================
 
 CREATE TABLE frequencias (
     id INT NOT NULL AUTO_INCREMENT,
     aluno_id INT NOT NULL,
+    chamada_id INT DEFAULT NULL,
+    numero_aula INT DEFAULT NULL,
     data_aula DATE NOT NULL,
     presente BOOLEAN NOT NULL DEFAULT FALSE,
 
     PRIMARY KEY (id),
 
-    UNIQUE KEY uk_frequencia_aluno_data (
+    UNIQUE KEY uk_frequencia_chamada_aula (
+        chamada_id,
         aluno_id,
-        data_aula
+        numero_aula
     ),
 
     KEY idx_frequencias_aluno (aluno_id),
@@ -269,6 +323,12 @@ CREATE TABLE frequencias (
     CONSTRAINT fk_frequencias_aluno
         FOREIGN KEY (aluno_id)
         REFERENCES alunos(id)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE,
+
+    CONSTRAINT fk_frequencias_chamada
+        FOREIGN KEY (chamada_id)
+        REFERENCES chamadas(id)
         ON DELETE CASCADE
         ON UPDATE CASCADE
 
@@ -351,24 +411,30 @@ VALUES
 -- ============================================================
 
 INSERT INTO professores
-    (nome, email, telefone, turma_id)
+    (nome, email, telefone, usuario, senha, turma_id)
 VALUES
     (
         'Carlos Mendes',
         'carlos.mendes@escola.com',
         '(11) 99999-0001',
+        'carlos',
+        '123456',
         1
     ),
     (
         'Ana Oliveira',
         'ana.oliveira@escola.com',
         '(11) 99999-0002',
+        'ana',
+        '123456',
         2
     ),
     (
         'Ricardo Souza',
         'ricardo.souza@escola.com',
         '(11) 99999-0003',
+        'ricardo',
+        '123456',
         NULL
     );
 
@@ -408,14 +474,14 @@ VALUES
 -- ============================================================
 
 INSERT INTO frequencias
-    (aluno_id, data_aula, presente)
+    (aluno_id, chamada_id, numero_aula, data_aula, presente)
 VALUES
-    (1, '2026-08-26', TRUE),
-    (1, '2026-08-27', TRUE),
-    (1, '2026-08-28', FALSE),
-    (2, '2026-08-26', TRUE),
-    (2, '2026-08-27', FALSE),
-    (2, '2026-08-28', TRUE);
+    (1, NULL, 1, '2026-08-26', TRUE),
+    (1, NULL, 1, '2026-08-27', TRUE),
+    (1, NULL, 1, '2026-08-28', FALSE),
+    (2, NULL, 1, '2026-08-26', TRUE),
+    (2, NULL, 1, '2026-08-27', FALSE),
+    (2, NULL, 1, '2026-08-28', TRUE);
 
 
 -- ============================================================

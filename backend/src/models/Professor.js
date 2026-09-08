@@ -18,6 +18,15 @@ Professor.init(
       type: DataTypes.STRING(20),
       allowNull: true
     },
+    usuario: {
+      type: DataTypes.STRING(50),
+      allowNull: true,
+      unique: true
+    },
+    senha: {
+      type: DataTypes.STRING(100),
+      allowNull: true
+    },
     turma_id: {
       type: DataTypes.INTEGER,
       allowNull: true
@@ -27,7 +36,10 @@ Professor.init(
     sequelize,
     modelName: 'professor',
     tableName: 'professores',
-    timestamps: false
+    timestamps: false,
+    defaultScope: {
+      attributes: { exclude: ['senha'] }
+    }
   }
 );
 

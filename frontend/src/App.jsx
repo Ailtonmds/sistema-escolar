@@ -8,6 +8,7 @@ import {
   Button,
   Card,
   CardContent,
+  Checkbox,
   Chip,
   Container,
   CssBaseline,
@@ -124,6 +125,13 @@ const initialFrequenciaForm = {
   presente: true,
 };
 
+const initialChamadaForm = {
+  disciplina_id: '',
+  data_aula: new Date().toISOString().split('T')[0],
+  quantidade_aulas: 1,
+  titulo_plano: '',
+};
+
 const menuItems = [
   { key: 'dashboard', label: 'Início', description: 'Visão geral do sistema', icon: <DashboardIcon /> },
   { key: 'alunos', label: 'Alunos', description: 'Cadastro e consulta de estudantes', icon: <PeopleIcon /> },
@@ -131,6 +139,7 @@ const menuItems = [
   { key: 'disciplinas', label: 'Disciplinas', description: 'Matérias e currículo', icon: <MenuBookIcon /> },
   { key: 'notas', label: 'Notas / Boletim', description: 'Lançamento e consulta de notas', icon: <AssessmentIcon /> },
   { key: 'frequencia', label: 'Chamada', description: 'Registro de frequência dos alunos', icon: <HowToRegIcon /> },
+  { key: 'chamada', label: 'Fazer Chamada', description: 'Chamada da minha disciplina', icon: <HowToRegIcon /> },
   { key: 'professores', label: 'Professores', description: 'Gestão da equipe', icon: <SupervisorAccountIcon /> },
   { key: 'financeiro', label: 'Financeiro', description: 'Mensalidades e contas', icon: <AttachMoneyIcon /> },
   { key: 'relatorios', label: 'Relatórios', description: 'Indicadores da escola', icon: <BarChartIcon /> },
@@ -290,6 +299,11 @@ function App() {
   const [frequenciaForm, setFrequenciaForm] = useState(initialFrequenciaForm);
   const [frequencias, setFrequencias] = useState([]);
 
+  const [authToken, setAuthToken] = useState(null);
+  const [professorLogado, setProfessorLogado] = useState(null);
+  const [chamadaForm, setChamadaForm] = useState(initialChamadaForm);
+  const [marcacoes, setMarcacoes] = useState({});
+
   const [disciplinaForm, setDisciplinaForm] = useState(initialDisciplinaForm);
   const [disciplinas, setDisciplinas] = useState([]);
   const [editingDisciplinaId, setEditingDisciplinaId] = useState(null);
@@ -390,6 +404,7 @@ function App() {
   const handleNotaChange = (e) => setNotaForm({ ...notaForm, [e.target.name]: e.target.value });
   const handleFrequenciaChange = (e) => setFrequenciaForm({ ...frequenciaForm, [e.target.name]: e.target.value });
   const handleLoginChange = (e) => setLoginForm({ ...loginForm, [e.target.name]: e.target.value });
+  const handleChamadaChange = (e) => setChamadaForm({ ...chamadaForm, [e.target.name]: e.target.value });
   const handleDisciplinaChange = (e) => setDisciplinaForm({ ...disciplinaForm, [e.target.name]: e.target.value });
   const handleProfessorChange = (e) => setProfessorForm({ ...professorForm, [e.target.name]: e.target.value });
 
@@ -448,12 +463,102 @@ function App() {
     return `${partes[2]}/${partes[1]}/${partes[0]}`;
   };
 
-  const handleLoginSubmit = (event) => {
+  const handleLoginSubmit = async (event) => {
     event.preventDefault();
-    if (loginForm.usuario && loginForm.senha) {
-      setLoggedIn(true);
-    } else {
+
+    if (!loginForm.usuario || !loginForm.senha) {
       notify('Informe usuário e senha.', 'error');
+      return;
+    }
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(loginForm),
+      });
+
+      if (!response.ok) {
+        notify('Usuário ou senha inválidos.', 'error');
+        return;
+      }
+
+      const data = await response.json();
+      setAuthToken(data.token);
+      setProfessorLogado(data.professor);
+      setLoggedIn(true);
+      setView('chamada');
+    } catch (error) {
+      console.error(error);
+      notify('Falha ao conectar com o servidor.', 'error');
+    }
+  };
+
+  const quantidadeAulas = Math.max(1, parseInt(chamadaForm.quantidade_aulas, 10) || 1);
+
+  const alunosDaTurma = professorLogado
+    ? (alunos || []).filter((a) => Number(a.turma_id) === Number(professorLogado.turma_id))
+    : [];
+
+  const handleMarcarFalta = (alunoId, aula) => {
+    setMarcacoes((prev) => ({
+      ...prev,
+      [`${alunoId}-${aula}`]: !prev[`${alunoId}-${aula}`],
+    }));
+  };
+
+  const handleSalvarChamada = async () => {
+    if (!professorLogado) return;
+
+    if (!chamadaForm.disciplina_id || !chamadaForm.data_aula) {
+      notify('Preencha a disciplina e a data da aula.', 'error');
+      return;
+    }
+
+    if (alunosDaTurma.length === 0) {
+      notify('A sua turma não possui alunos cadastrados.', 'error');
+      return;
+    }
+
+    const faltas = [];
+
+    alunosDaTurma.forEach((aluno) => {
+      for (let aula = 1; aula <= quantidadeAulas; aula += 1) {
+        if (marcacoes[`${aluno.id}-${aula}`]) {
+          faltas.push({ aluno_id: aluno.id, numero_aula: aula });
+        }
+      }
+    });
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/chamadas`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({
+          turma_id: professorLogado.turma_id,
+          disciplina_id: chamadaForm.disciplina_id,
+          data_aula: chamadaForm.data_aula,
+          quantidade_aulas: quantidadeAulas,
+          titulo_plano: chamadaForm.titulo_plano,
+          faltas,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+        notify(errorData?.message || 'Erro ao salvar chamada.', 'error');
+        return;
+      }
+
+      notify('Chamada salva com sucesso!');
+      setMarcacoes({});
+      setChamadaForm((prev) => ({ ...initialChamadaForm, data_aula: prev.data_aula }));
+    } catch (error) {
+      console.error(error);
+      notify('Falha ao conectar com o servidor.', 'error');
     }
   };
 
@@ -763,6 +868,10 @@ function App() {
       setNotaForm(initialNotaForm);
     }
   };
+
+  const menuVisivel = professorLogado
+    ? menuItems.filter((item) => item.key === 'chamada')
+    : menuItems;
 
   if (!loggedIn) {
     return (

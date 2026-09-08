@@ -1,41 +1,41 @@
 import { DataTypes, Model } from 'sequelize';
 import sequelize from '../config/database.js';
 
-class Frequencia extends Model {}
+class Chamada extends Model {}
 
-Frequencia.init(
+Chamada.init(
   {
-    aluno_id: {
+    professor_id: {
       type: DataTypes.INTEGER,
       allowNull: false
     },
-
-    chamada_id: {
+    turma_id: {
       type: DataTypes.INTEGER,
-      allowNull: true
+      allowNull: false
     },
-
-    numero_aula: {
+    disciplina_id: {
       type: DataTypes.INTEGER,
-      allowNull: true
+      allowNull: false
     },
-
     data_aula: {
       type: DataTypes.DATEONLY,
       allowNull: false
     },
-
-    presente: {
-      type: DataTypes.BOOLEAN,
+    quantidade_aulas: {
+      type: DataTypes.INTEGER,
       allowNull: false
+    },
+    titulo_plano: {
+      type: DataTypes.STRING(255),
+      allowNull: true
     }
   },
   {
     sequelize,
-    modelName: 'frequencia',
-    tableName: 'frequencias',
+    modelName: 'chamada',
+    tableName: 'chamadas',
     timestamps: false
   }
 );
 
-export default Frequencia;
+export default Chamada;

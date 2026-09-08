@@ -29,7 +29,7 @@ async function listarProfessores(req, res) {
 
 async function cadastrarProfessor(req, res) {
   try {
-    const { nome, email, telefone, turma_id, disciplina_ids } = req.body;
+    const { nome, email, telefone, turma_id, disciplina_ids, usuario, senha } = req.body;
 
     if (!nome) {
       return res.status(400).json({ message: 'Nome do professor é obrigatório' });
@@ -39,6 +39,8 @@ async function cadastrarProfessor(req, res) {
       nome,
       email: email || null,
       telefone: telefone || null,
+      usuario: usuario || null,
+      senha: senha || null,
       turma_id: turma_id || null
     });
 
@@ -80,12 +82,14 @@ async function atualizarProfessor(req, res) {
       return res.status(404).json({ message: 'Professor não encontrado' });
     }
 
-    const { nome, email, telefone, turma_id, disciplina_ids } = req.body;
+    const { nome, email, telefone, turma_id, disciplina_ids, usuario, senha } = req.body;
 
     await professor.update({
       nome,
       email: email || null,
       telefone: telefone || null,
+      usuario: usuario || null,
+      senha: senha || null,
       turma_id: turma_id || null
     });
 
