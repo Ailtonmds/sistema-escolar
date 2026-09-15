@@ -92,6 +92,7 @@ CREATE TABLE professores (
     usuario VARCHAR(50) DEFAULT NULL,
     senha VARCHAR(100) DEFAULT NULL,
     turma_id INT DEFAULT NULL,
+    perfil ENUM('professor','admin','aluno') NOT NULL DEFAULT 'professor',
 
     PRIMARY KEY (id),
 
@@ -338,6 +339,39 @@ COLLATE=utf8mb4_unicode_ci;
 
 
 -- ============================================================
+-- TABELA: AUDITORIA
+--
+-- Missão 007 - Registra operações importantes do sistema
+-- (login, notas e frequências). Somente o perfil admin consulta.
+-- ============================================================
+
+DROP TABLE IF EXISTS auditoria;
+
+CREATE TABLE auditoria (
+    id INT NOT NULL AUTO_INCREMENT,
+    usuario_id INT DEFAULT NULL,
+    usuario_nome VARCHAR(150) DEFAULT NULL,
+    perfil VARCHAR(20) DEFAULT NULL,
+    operacao VARCHAR(50) NOT NULL,
+    recurso VARCHAR(50) NOT NULL,
+    recurso_id INT DEFAULT NULL,
+    detalhes TEXT DEFAULT NULL,
+    criado_em DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    PRIMARY KEY (id),
+
+    KEY idx_auditoria_criado_em (criado_em),
+    KEY idx_auditoria_operacao (operacao),
+    KEY idx_auditoria_recurso (recurso),
+    KEY idx_auditoria_usuario (usuario_id),
+    KEY idx_auditoria_perfil (perfil)
+
+) ENGINE=InnoDB
+DEFAULT CHARSET=utf8mb4
+COLLATE=utf8mb4_unicode_ci;
+
+
+-- ============================================================
 -- DADOS INICIAIS
 -- ============================================================
 
@@ -411,15 +445,25 @@ VALUES
 -- ============================================================
 
 INSERT INTO professores
-    (nome, email, telefone, usuario, senha, turma_id)
+    (nome, email, telefone, usuario, senha, turma_id, perfil)
 VALUES
+    (
+        'Administrador',
+        'admin@escola.com',
+        '(11) 99999-0000',
+        'admin',
+        'admin123',
+        NULL,
+        'admin'
+    ),
     (
         'Carlos Mendes',
         'carlos.mendes@escola.com',
         '(11) 99999-0001',
         'carlos',
         '123456',
-        1
+        1,
+        'professor'
     ),
     (
         'Ana Oliveira',
@@ -427,7 +471,8 @@ VALUES
         '(11) 99999-0002',
         'ana',
         '123456',
-        2
+        2,
+        'professor'
     ),
     (
         'Ricardo Souza',
@@ -435,7 +480,8 @@ VALUES
         '(11) 99999-0003',
         'ricardo',
         '123456',
-        NULL
+        NULL,
+        'professor'
     );
 
 
@@ -446,12 +492,12 @@ VALUES
 INSERT INTO professor_disciplinas
     (professor_id, disciplina_id)
 VALUES
-    (1, 4),
-    (1, 5),
-    (2, 1),
-    (2, 3),
-    (3, 2),
-    (3, 6);
+    (2, 4),
+    (2, 5),
+    (3, 1),
+    (3, 3),
+    (4, 2),
+    (4, 6);
 
 
 -- ============================================================
@@ -659,6 +705,7 @@ SELECT
     p.id,
     p.nome,
     p.email,
+    p.perfil,
     t.nome AS turma,
     GROUP_CONCAT(d.nome ORDER BY d.nome SEPARATOR ', ') AS disciplinas
 FROM professores p
@@ -672,6 +719,7 @@ GROUP BY
     p.id,
     p.nome,
     p.email,
+    p.perfil,
     t.nome
 ORDER BY p.nome;
 

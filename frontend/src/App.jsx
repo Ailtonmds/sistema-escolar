@@ -63,6 +63,8 @@ import AddIcon from '@mui/icons-material/Add';
 import CloseIcon from '@mui/icons-material/Close';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import HowToRegIcon from '@mui/icons-material/HowToReg';
+import VerifiedUserIcon from '@mui/icons-material/VerifiedUser';
+import HistoryIcon from '@mui/icons-material/History';
 import Slide from '@mui/material/Slide';
 
 const API_BASE_URL = '';
@@ -141,6 +143,7 @@ const menuItems = [
   { key: 'frequencia', label: 'Chamada', description: 'Registro de frequência dos alunos', icon: <HowToRegIcon /> },
   { key: 'chamada', label: 'Fazer Chamada', description: 'Chamada da minha disciplina', icon: <HowToRegIcon /> },
   { key: 'professores', label: 'Professores', description: 'Gestão da equipe', icon: <SupervisorAccountIcon /> },
+  { key: 'auditoria', label: 'Auditoria', description: 'Registros de operações sensíveis', icon: <HistoryIcon /> },
   { key: 'financeiro', label: 'Financeiro', description: 'Mensalidades e contas', icon: <AttachMoneyIcon /> },
   { key: 'relatorios', label: 'Relatórios', description: 'Indicadores da escola', icon: <BarChartIcon /> },
 ];
@@ -156,6 +159,9 @@ const initialProfessorForm = {
   telefone: '',
   turma_id: '',
   disciplina_ids: [],
+  usuario: '',
+  senha: '',
+  perfil: 'professor',
 };
 
 const seriesOptions = ['1º Ano', '2º Ano', '3º Ano', '4º Ano', '5º Ano'];
@@ -316,8 +322,20 @@ function App() {
 
   const [view, setView] = useState('dashboard');
   const [loggedIn, setLoggedIn] = useState(false);
-  const [loginForm, setLoginForm] = useState({ usuario: '', senha: '' });
+  const [loginForm, setLoginForm] = useState({ email: '', senha: '' });
   const [anchorEl, setAnchorEl] = useState(null);
+
+  const [editingNotaId, setEditingNotaId] = useState(null);
+  const [editingFrequenciaId, setEditingFrequenciaId] = useState(null);
+
+  const [auditoria, setAuditoria] = useState([]);
+  const [auditoriaIndicadores, setAuditoriaIndicadores] = useState(null);
+  const [auditoriaFiltros, setAuditoriaFiltros] = useState({
+    busca: '',
+    operacao: '',
+    inicio: '',
+    fim: '',
+  });
 
   const [snack, setSnack] = useState({ open: false, message: '', severity: 'success' });
   const [pendingDelete, setPendingDelete] = useState(null);
@@ -328,9 +346,15 @@ function App() {
     setSnack((s) => ({ ...s, open: false }));
   };
 
+  const authedHeaders = (extra = {}) => ({
+    'Content-Type': 'application/json',
+    ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+    ...extra,
+  });
+
   const carregarAlunos = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/alunos`);
+      const response = await fetch(`${API_BASE_URL}/api/alunos`, { headers: authedHeaders() });
       if (!response.ok) throw new Error('Erro ao carregar alunos');
       setAlunos(await response.json());
     } catch (error) {
@@ -340,7 +364,7 @@ function App() {
 
   const carregarTurmas = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/turmas`);
+      const response = await fetch(`${API_BASE_URL}/api/turmas`, { headers: authedHeaders() });
       if (!response.ok) throw new Error('Erro ao carregar turmas');
       setTurmas(await response.json());
     } catch (error) {
@@ -350,7 +374,7 @@ function App() {
 
   const carregarNotas = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/notas`);
+      const response = await fetch(`${API_BASE_URL}/api/notas`, { headers: authedHeaders() });
       if (!response.ok) throw new Error('Erro ao carregar notas');
       setNotas(await response.json());
     } catch (error) {
@@ -360,7 +384,7 @@ function App() {
 
   const carregarFrequencias = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/frequencias`);
+      const response = await fetch(`${API_BASE_URL}/api/frequencias`, { headers: authedHeaders() });
       if (!response.ok) throw new Error('Erro ao carregar frequências');
       setFrequencias(await response.json());
     } catch (error) {
@@ -370,7 +394,7 @@ function App() {
 
   const carregarDisciplinas = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/disciplinas`);
+      const response = await fetch(`${API_BASE_URL}/api/disciplinas`, { headers: authedHeaders() });
       if (!response.ok) throw new Error('Erro ao carregar disciplinas');
       setDisciplinas(await response.json());
     } catch (error) {
@@ -380,9 +404,34 @@ function App() {
 
   const carregarProfessores = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/professores`);
+      const response = await fetch(`${API_BASE_URL}/api/professores`, { headers: authedHeaders() });
       if (!response.ok) throw new Error('Erro ao carregar professores');
       setProfessores(await response.json());
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  const carregarAuditoria = async () => {
+    try {
+      const params = new URLSearchParams();
+      if (auditoriaFiltros.busca) params.set('usuario', auditoriaFiltros.busca);
+      if (auditoriaFiltros.operacao) params.set('operacao', auditoriaFiltros.operacao);
+      if (auditoriaFiltros.inicio) params.set('inicio', auditoriaFiltros.inicio);
+      if (auditoriaFiltros.fim) params.set('fim', auditoriaFiltros.fim);
+
+      const response = await fetch(`${API_BASE_URL}/api/auditoria?${params.toString()}`, {
+        headers: authedHeaders(),
+      });
+      if (!response.ok) throw new Error('Erro ao carregar auditoria');
+      setAuditoria(await response.json());
+
+      const responseIndicadores = await fetch(`${API_BASE_URL}/api/auditoria/indicadores`, {
+        headers: authedHeaders(),
+      });
+      if (responseIndicadores.ok) {
+        setAuditoriaIndicadores(await responseIndicadores.json());
+      }
     } catch (error) {
       console.error(error);
     }
@@ -397,14 +446,28 @@ function App() {
       carregarDisciplinas();
       carregarProfessores();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loggedIn]);
+
+  useEffect(() => {
+    if (view === 'auditoria' && loggedIn && professorLogado?.perfil === 'admin') {
+      carregarAuditoria();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view, auditoriaFiltros, loggedIn]);
 
   const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
   const handleTurmaChange = (e) => setTurmaForm({ ...turmaForm, [e.target.name]: e.target.value });
   const handleNotaChange = (e) => setNotaForm({ ...notaForm, [e.target.name]: e.target.value });
   const handleFrequenciaChange = (e) => setFrequenciaForm({ ...frequenciaForm, [e.target.name]: e.target.value });
   const handleLoginChange = (e) => setLoginForm({ ...loginForm, [e.target.name]: e.target.value });
-  const handleChamadaChange = (e) => setChamadaForm({ ...chamadaForm, [e.target.name]: e.target.value });
+  const handleChamadaChange = (e) => {
+    const { name, value } = e.target;
+    setChamadaForm((prev) => ({ ...prev, [name]: value }));
+    if (name === 'quantidade_aulas') {
+      setMarcacoes({});
+    }
+  };
   const handleDisciplinaChange = (e) => setDisciplinaForm({ ...disciplinaForm, [e.target.name]: e.target.value });
   const handleProfessorChange = (e) => setProfessorForm({ ...professorForm, [e.target.name]: e.target.value });
 
@@ -424,9 +487,12 @@ function App() {
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/frequencias`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const url = editingFrequenciaId
+        ? `${API_BASE_URL}/api/frequencias/${editingFrequenciaId}`
+        : `${API_BASE_URL}/api/frequencias`;
+      const response = await fetch(url, {
+        method: editingFrequenciaId ? 'PUT' : 'POST',
+        headers: authedHeaders(),
         body: JSON.stringify({
           aluno_id: parseInt(frequenciaForm.aluno_id),
           data_aula: frequenciaForm.data_aula,
@@ -435,24 +501,20 @@ function App() {
       });
 
       if (!response.ok) {
-        setFrequencias((prev) => [...prev, criarFrequenciaLocal()]);
-        notify('Frequência registrada com sucesso! (modo local)', 'warning');
-      } else {
-        notify('Frequência registrada com sucesso!');
-        carregarFrequencias();
+        throw new Error('Falha ao salvar frequência.');
       }
+
+      notify(editingFrequenciaId ? 'Frequência atualizada com sucesso!' : 'Frequência registrada com sucesso!');
+      setEditingFrequenciaId(null);
+      carregarFrequencias();
 
       setFrequenciaForm({
         ...initialFrequenciaForm,
         data_aula: frequenciaForm.data_aula,
       });
     } catch (error) {
-      setFrequencias((prev) => [...prev, criarFrequenciaLocal()]);
-      notify('Frequência registrada com sucesso! (modo local)', 'warning');
-      setFrequenciaForm({
-        ...initialFrequenciaForm,
-        data_aula: frequenciaForm.data_aula,
-      });
+      console.error(error);
+      notify(editingFrequenciaId ? 'Erro ao atualizar frequência.' : 'Erro ao registrar frequência.', 'error');
     }
   };
 
@@ -466,8 +528,8 @@ function App() {
   const handleLoginSubmit = async (event) => {
     event.preventDefault();
 
-    if (!loginForm.usuario || !loginForm.senha) {
-      notify('Informe usuário e senha.', 'error');
+    if (!loginForm.email || !loginForm.senha) {
+      notify('Informe e-mail e senha.', 'error');
       return;
     }
 
@@ -475,7 +537,7 @@ function App() {
       const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(loginForm),
+        body: JSON.stringify({ email: loginForm.email, senha: loginForm.senha }),
       });
 
       if (!response.ok) {
@@ -487,14 +549,25 @@ function App() {
       setAuthToken(data.token);
       setProfessorLogado(data.professor);
       setLoggedIn(true);
-      setView('chamada');
+      setView(data.professor?.perfil === 'admin' ? 'dashboard' : 'chamada');
     } catch (error) {
       console.error(error);
       notify('Falha ao conectar com o servidor.', 'error');
     }
   };
 
-  const quantidadeAulas = Math.max(1, parseInt(chamadaForm.quantidade_aulas, 10) || 1);
+  const handleLogout = () => {
+    setLoggedIn(false);
+    setAuthToken(null);
+    setProfessorLogado(null);
+    setMarcacoes({});
+    setView('dashboard');
+    setLoginForm({ email: '', senha: '' });
+    setAnchorEl(null);
+    notify('Logout realizado.', 'success');
+  };
+
+  const quantidadeAulas = Math.max(1, Math.min(10, parseInt(chamadaForm.quantidade_aulas, 10) || 1));
 
   const alunosDaTurma = professorLogado
     ? (alunos || []).filter((a) => Number(a.turma_id) === Number(professorLogado.turma_id))
@@ -507,21 +580,42 @@ function App() {
     }));
   };
 
-  const handleSalvarChamada = async () => {
-    if (!professorLogado) return;
+  const alunoTemFalta = (alunoId, numeroAula) => {
+    return Boolean(marcacoes[`${alunoId}-${numeroAula}`]);
+  };
 
-    if (!chamadaForm.disciplina_id || !chamadaForm.data_aula) {
-      notify('Preencha a disciplina e a data da aula.', 'error');
+  const handleSalvarChamada = async () => {
+    if (!professorLogado) {
+      notify('Professor nao identificado.', 'error');
+      return;
+    }
+
+    if (!authToken) {
+      notify('Sessao invalida. Faca login novamente.', 'error');
+      return;
+    }
+
+    if (!chamadaForm.disciplina_id) {
+      notify('Selecione a disciplina.', 'error');
+      return;
+    }
+
+    if (!chamadaForm.data_aula) {
+      notify('Informe a data da aula.', 'error');
+      return;
+    }
+
+    if (!chamadaForm.quantidade_aulas) {
+      notify('Informe a quantidade de aulas.', 'error');
       return;
     }
 
     if (alunosDaTurma.length === 0) {
-      notify('A sua turma não possui alunos cadastrados.', 'error');
+      notify('A turma nao possui alunos cadastrados.', 'error');
       return;
     }
 
     const faltas = [];
-
     alunosDaTurma.forEach((aluno) => {
       for (let aula = 1; aula <= quantidadeAulas; aula += 1) {
         if (marcacoes[`${aluno.id}-${aula}`]) {
@@ -530,6 +624,15 @@ function App() {
       }
     });
 
+    const dadosChamada = {
+      turma_id: Number(professorLogado.turma_id),
+      disciplina_id: Number(chamadaForm.disciplina_id),
+      data_aula: chamadaForm.data_aula,
+      quantidade_aulas: quantidadeAulas,
+      titulo_plano: chamadaForm.titulo_plano,
+      faltas,
+    };
+
     try {
       const response = await fetch(`${API_BASE_URL}/api/chamadas`, {
         method: 'POST',
@@ -537,28 +640,21 @@ function App() {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${authToken}`,
         },
-        body: JSON.stringify({
-          turma_id: professorLogado.turma_id,
-          disciplina_id: chamadaForm.disciplina_id,
-          data_aula: chamadaForm.data_aula,
-          quantidade_aulas: quantidadeAulas,
-          titulo_plano: chamadaForm.titulo_plano,
-          faltas,
-        }),
+        body: JSON.stringify(dadosChamada),
       });
 
+      const resultado = await response.json().catch(() => null);
+
       if (!response.ok) {
-        const errorData = await response.json().catch(() => null);
-        notify(errorData?.message || 'Erro ao salvar chamada.', 'error');
-        return;
+        throw new Error(resultado?.message || resultado?.error || 'Erro ao salvar chamada.');
       }
 
       notify('Chamada salva com sucesso!');
       setMarcacoes({});
       setChamadaForm((prev) => ({ ...initialChamadaForm, data_aula: prev.data_aula }));
     } catch (error) {
-      console.error(error);
-      notify('Falha ao conectar com o servidor.', 'error');
+      console.error('Erro na chamada:', error);
+      notify(error.message || 'Falha ao conectar com o servidor.', 'error');
     }
   };
 
@@ -760,6 +856,9 @@ function App() {
         telefone: professorForm.telefone,
         turma_id: professorForm.turma_id ? parseInt(professorForm.turma_id, 10) : null,
         disciplina_ids: professorForm.disciplina_ids.map(Number),
+        usuario: professorForm.usuario || null,
+        senha: professorForm.senha || null,
+        perfil: professorForm.perfil || 'professor',
       };
 
       const response = await fetch(url, {
@@ -789,6 +888,9 @@ function App() {
       telefone: professor.telefone || '',
       turma_id: professor.turma_id ? String(professor.turma_id) : '',
       disciplina_ids: (professor.disciplinas || []).map((d) => d.id),
+      usuario: professor.usuario || '',
+      senha: '',
+      perfil: professor.perfil || 'professor',
     });
     setEditingProfessorId(professor.id);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -841,11 +943,13 @@ function App() {
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/notas`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const url = editingNotaId
+        ? `${API_BASE_URL}/api/notas/${editingNotaId}`
+        : `${API_BASE_URL}/api/notas`;
+      const response = await fetch(url, {
+        method: editingNotaId ? 'PUT' : 'POST',
+        headers: authedHeaders(),
         body: JSON.stringify({
-          ...notaForm,
           aluno_id: parseInt(notaForm.aluno_id),
           disciplina: parseInt(notaForm.disciplina),
           bimestre: parseInt(notaForm.bimestre),
@@ -854,24 +958,83 @@ function App() {
       });
 
       if (!response.ok) {
-        setNotas((prev) => [...prev, criarNotaLocal()]);
-        notify('Nota salva com sucesso! (modo local)', 'warning');
-      } else {
-        notify('Nota salva com sucesso!');
-        carregarNotas();
+        const errorData = await response.json().catch(() => null);
+        throw new Error(errorData?.error || 'Erro ao salvar nota.');
       }
+
+      notify(editingNotaId ? 'Nota atualizada com sucesso!' : 'Nota salva com sucesso!');
+      setEditingNotaId(null);
+      carregarNotas();
 
       setNotaForm(initialNotaForm);
     } catch (error) {
-      setNotas((prev) => [...prev, criarNotaLocal()]);
-      notify('Nota salva com sucesso! (modo local)', 'warning');
-      setNotaForm(initialNotaForm);
+      console.error(error);
+      notify(error.message || 'Erro ao salvar nota.', 'error');
     }
   };
 
-  const menuVisivel = professorLogado
-    ? menuItems.filter((item) => item.key === 'chamada')
-    : menuItems;
+  const handleEditNota = (nota) => {
+    setNotaForm({
+      aluno_id: String(nota.aluno_id),
+      disciplina: String(nota.disciplina),
+      bimestre: nota.bimestre,
+      nota: String(nota.nota),
+    });
+    setEditingNotaId(nota.id);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const askDeleteNota = (id) => {
+    setPendingDelete({
+      title: 'Excluir nota',
+      description: 'Esta ação não pode ser desfeita. Deseja realmente excluir esta nota?',
+      action: async () => {
+        try {
+          const response = await fetch(`${API_BASE_URL}/api/notas/${id}`, {
+            method: 'DELETE',
+            headers: authedHeaders(),
+          });
+          if (!response.ok) throw new Error('Erro ao excluir nota');
+          notify('Nota excluída com sucesso!');
+          carregarNotas();
+        } catch (error) {
+          setNotas((prev) => prev.filter((n) => n.id !== id));
+          notify('Nota excluída (modo local).', 'warning');
+        }
+      },
+    });
+  };
+
+  const handleEditFrequencia = (registro) => {
+    setFrequenciaForm({
+      aluno_id: String(registro.aluno_id),
+      data_aula: String(registro.data_aula || registro.data || '').split('T')[0],
+      presente: String(registro.presente).toLowerCase() === 'sim' || registro.presente === true || registro.presente === 1,
+    });
+    setEditingFrequenciaId(registro.id);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const askDeleteFrequencia = (id) => {
+    setPendingDelete({
+      title: 'Excluir frequência',
+      description: 'Esta ação não pode ser desfeita. Deseja realmente excluir este registro de frequência?',
+      action: async () => {
+        try {
+          const response = await fetch(`${API_BASE_URL}/api/frequencias/${id}`, {
+            method: 'DELETE',
+            headers: authedHeaders(),
+          });
+          if (!response.ok) throw new Error('Erro ao excluir frequência');
+          notify('Frequência excluída com sucesso!');
+          carregarFrequencias();
+        } catch (error) {
+          setFrequencias((prev) => prev.filter((f) => f.id !== id));
+          notify('Frequência excluída (modo local).', 'warning');
+        }
+      },
+    });
+  };
 
   if (!loggedIn) {
     return (
@@ -901,13 +1064,13 @@ function App() {
                 <Box textAlign="center">
                   <Typography variant="h5" fontWeight={800}>Portal Escolar</Typography>
                   <Typography variant="body2" color="text.secondary" mt={0.5}>
-                    Acesso restrito ao painel administrativo.
+                    Acesso restrito. Professor ou Administração.
                   </Typography>
                 </Box>
 
                 <form onSubmit={handleLoginSubmit} style={{ width: '100%' }}>
                   <Stack spacing={2.5}>
-                    <TextField fullWidth label="Usuário" name="usuario" value={loginForm.usuario} onChange={handleLoginChange} />
+                    <TextField fullWidth label="E-mail" name="email" type="email" value={loginForm.email} onChange={handleLoginChange} placeholder="admin@escola.com" />
                     <TextField fullWidth label="Senha" name="senha" type="password" value={loginForm.senha} onChange={handleLoginChange} />
                     <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
                       <Button
@@ -952,6 +1115,18 @@ function App() {
 
   const ultimasNotas = [...notas].slice(-5).reverse();
 
+  const podeVer = (tela) => {
+    if (!professorLogado) return false;
+    const perfil = professorLogado.perfil;
+    if (perfil === 'admin') return tela !== 'chamada';
+    return tela === 'chamada';
+  };
+
+  const irPara = (tela) => {
+    if (podeVer(tela)) setView(tela);
+    else setView('acesso-negado');
+  };
+
   const renderNotaRow = (item) => {
     const alunoObj = alunos.find((a) => a.id === item.aluno_id);
     return (
@@ -988,6 +1163,14 @@ function App() {
             label={Number(item.nota).toFixed(1)}
             sx={{ bgcolor: 'transparent', border: '2px solid', borderColor: notaColor(item.nota), color: notaColor(item.nota), fontWeight: 800, fontSize: '1rem', px: 0.5 }}
           />
+          <Stack direction="row" spacing={0.5}>
+            <IconButton size="small" color="primary" onClick={() => handleEditNota(item)}>
+              <EditIcon fontSize="small" />
+            </IconButton>
+            <IconButton size="small" color="error" onClick={() => askDeleteNota(item.id)}>
+              <DeleteIcon fontSize="small" />
+            </IconButton>
+          </Stack>
         </Box>
       </motion.div>
     );
@@ -1019,16 +1202,18 @@ function App() {
               </Typography>
             </Box>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-              <Chip
-                icon={<TrendingUpIcon />}
-                label={`Média geral ${mediaGeralTurma}`}
-                size="small"
-                sx={{ display: { xs: 'none', md: 'inline-flex' }, fontWeight: 600, bgcolor: 'rgba(16,185,129,0.1)', color: 'success.main' }}
-              />
+              {professorLogado && (
+                <Chip
+                  label={professorLogado.nome}
+                  color="primary"
+                  variant="outlined"
+                  sx={{ display: { xs: 'none', md: 'inline-flex' }, fontWeight: 600 }}
+                />
+              )}
               <Tooltip title="Conta">
                 <IconButton onClick={(e) => setAnchorEl(e.currentTarget)} size="small">
                   <Avatar sx={{ width: 38, height: 38, bgcolor: 'primary.main', fontWeight: 700 }}>
-                    {getInitials(loginForm.usuario) || 'AD'}
+                    {getInitials(professorLogado?.nome || loginForm.email) || 'AD'}
                   </Avatar>
                 </IconButton>
               </Tooltip>
@@ -1041,12 +1226,16 @@ function App() {
                 PaperProps={{ sx: { borderRadius: 3, minWidth: 180, mt: 1 } }}
               >
                 <Box px={2} py={1}>
-                  <Typography variant="subtitle2" fontWeight={700}>{loginForm.usuario || 'Administrador'}</Typography>
-                  <Typography variant="caption" color="text.secondary">Administrador</Typography>
+                  <Typography variant="subtitle2" fontWeight={700}>{professorLogado?.nome || loginForm.email || 'Administrador'}</Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    {professorLogado
+                      ? professorLogado.perfil === 'admin' ? 'Administração / Gestão' : 'Professor'
+                      : 'Administrador'}
+                  </Typography>
                 </Box>
                 <Divider />
                 <MenuItem
-                  onClick={() => { setAnchorEl(null); setLoggedIn(false); }}
+                  onClick={handleLogout}
                   sx={{ color: 'error.main', mt: 0.5 }}
                 >
                   <ListItemIcon><LogoutIcon fontSize="small" sx={{ color: 'error.main' }} /></ListItemIcon>
@@ -1076,11 +1265,18 @@ function App() {
           <Box sx={{ overflow: 'auto', mt: 2, px: 1.5 }}>
             <List sx={{ position: 'relative' }}>
               {menuItems.map((item) => {
+                const ehAdmin = professorLogado?.perfil === 'admin';
+                const permitido = professorLogado
+                  ? ehAdmin
+                    ? item.key !== 'chamada'
+                    : item.key === 'chamada'
+                  : true;
+                if (!permitido) return null;
                 const isSelected = view === item.key;
                 return (
                   <ListItem key={item.key} disablePadding sx={{ mb: 0.5 }}>
                     <ListItemButton
-                      onClick={() => setView(item.key)}
+                      onClick={() => irPara(item.key)}
                       sx={{ borderRadius: 2.5, py: 1.2, px: 2, position: 'relative' }}
                       disableRipple
                     >
@@ -1172,12 +1368,14 @@ function App() {
                       <Box sx={{ position: 'absolute', right: -60, top: -80, width: 280, height: 280, borderRadius: '50%', background: 'rgba(255,255,255,0.09)' }} />
                       <Box sx={{ position: 'absolute', right: 90, bottom: -110, width: 220, height: 220, borderRadius: '50%', background: 'rgba(255,255,255,0.07)' }} />
                       <Box position="relative">
-                        <Chip label="Painel administrativo" size="small" sx={{ bgcolor: 'rgba(255,255,255,0.16)', color: '#fff', fontWeight: 600, mb: 1.5 }} />
+                        <Chip label={professorLogado?.perfil === 'admin' ? 'Painel de gestão' : 'Chamada do professor'} size="small" sx={{ bgcolor: 'rgba(255,255,255,0.16)', color: '#fff', fontWeight: 600, mb: 1.5 }} />
                         <Typography variant="h4" gutterBottom>
-                          Bem-vindo, {loginForm.usuario || 'Administrador'} 👋
+                          Bem-vindo, {professorLogado?.nome || loginForm.usuario || 'Administrador'} 👋
                         </Typography>
                         <Typography variant="body1" sx={{ color: 'rgba(255,255,255,0.85)', maxWidth: 560 }}>
-                          Acompanhe o resumo da escola abaixo ou utilize o menu lateral para gerenciar alunos, turmas e notas.
+                          {professorLogado?.perfil === 'admin'
+                            ? 'Acompanhe o resumo da escola abaixo ou utilize o menu lateral para gerenciar alunos, turmas, disciplinas, notas e professores.'
+                            : 'Utilize a tela de chamada para registrar a frequência da sua disciplina.'}
                         </Typography>
                       </Box>
                     </Paper>
@@ -1203,7 +1401,7 @@ function App() {
                                 <Button
                                   fullWidth
                                   variant="outlined"
-                                  onClick={() => setView(item.key)}
+                                  onClick={() => irPara(item.key)}
                                   sx={{ p: 2, borderRadius: 3, justifyContent: 'flex-start', textAlign: 'left', borderColor: 'grey.300', color: 'text.primary', '&:hover': { borderColor: 'primary.light', bgcolor: 'primary.50' } }}
                                 >
                                   <Stack direction="row" spacing={1.5} alignItems="center">
@@ -1594,7 +1792,7 @@ function App() {
                       Lançamento de Notas e Boletim Digital
                     </Typography>
 
-                    <SectionCard title="Nova nota">
+                    <SectionCard title={editingNotaId ? 'Editar nota' : 'Nova nota'}>
                       <form onSubmit={handleNotaSubmit}>
                         <Grid container spacing={2.5}>
                           <Grid item xs={12} md={4}>
@@ -1630,10 +1828,19 @@ function App() {
 
                         <Stack direction="row" spacing={2} sx={{ mt: 3 }}>
                           <Button type="submit" variant="contained" startIcon={<AddIcon />} sx={{ px: 4, py: 1.1, borderRadius: 3 }}>
-                            Salvar Nota
+                            {editingNotaId ? 'Salvar Alterações' : 'Salvar Nota'}
                           </Button>
-                          <Button variant="text" color="inherit" startIcon={<CloseIcon />} sx={{ px: 3, borderRadius: 3 }} onClick={() => setNotaForm(initialNotaForm)}>
-                            Limpar
+                          <Button
+                            variant="text"
+                            color="inherit"
+                            startIcon={<CloseIcon />}
+                            sx={{ px: 3, borderRadius: 3 }}
+                            onClick={() => {
+                              setEditingNotaId(null);
+                              setNotaForm(initialNotaForm);
+                            }}
+                          >
+                            {editingNotaId ? 'Cancelar edição' : 'Limpar'}
                           </Button>
                         </Stack>
                       </form>
@@ -1703,7 +1910,7 @@ function App() {
                       Registro de Frequência
                     </Typography>
 
-                    <SectionCard title="Registrar chamada">
+                    <SectionCard title={editingFrequenciaId ? 'Editar frequência' : 'Registrar chamada'}>
                       <form onSubmit={handleFrequenciaSubmit}>
                         <Grid container spacing={2.5}>
                           <Grid item xs={12} md={5}>
@@ -1764,7 +1971,7 @@ function App() {
                             startIcon={<HowToRegIcon />}
                             sx={{ px: 4, py: 1.1, borderRadius: 3 }}
                           >
-                            Registrar
+                            {editingFrequenciaId ? 'Salvar alterações' : 'Registrar'}
                           </Button>
                           <Button
                             type="button"
@@ -1772,9 +1979,12 @@ function App() {
                             color="inherit"
                             startIcon={<CloseIcon />}
                             sx={{ px: 3, borderRadius: 3 }}
-                            onClick={() => setFrequenciaForm(initialFrequenciaForm)}
+                            onClick={() => {
+                              setEditingFrequenciaId(null);
+                              setFrequenciaForm(initialFrequenciaForm);
+                            }}
                           >
-                            Limpar
+                            {editingFrequenciaId ? 'Cancelar edição' : 'Limpar'}
                           </Button>
                         </Stack>
                       </form>
@@ -1794,6 +2004,7 @@ function App() {
                                 <TableCell sx={{ fontWeight: 700 }}>Aluno</TableCell>
                                 <TableCell sx={{ fontWeight: 700 }}>Data</TableCell>
                                 <TableCell sx={{ fontWeight: 700 }}>Presente</TableCell>
+                                <TableCell align="right" sx={{ fontWeight: 700 }}>Ações</TableCell>
                               </TableRow>
                             </TableHead>
                             <TableBody>
@@ -1838,6 +2049,16 @@ function App() {
                                         sx={{ fontWeight: 700 }}
                                       />
                                     </TableCell>
+                                    <TableCell align="right">
+                                      <Stack direction="row" spacing={0.5} justifyContent="flex-end">
+                                        <IconButton size="small" color="primary" onClick={() => handleEditFrequencia(registro)}>
+                                          <EditIcon fontSize="small" />
+                                        </IconButton>
+                                        <IconButton size="small" color="error" onClick={() => askDeleteFrequencia(registro.id)}>
+                                          <DeleteIcon fontSize="small" />
+                                        </IconButton>
+                                      </Stack>
+                                    </TableCell>
                                   </TableRow>
                                 );
                               })}
@@ -1846,6 +2067,354 @@ function App() {
                         </TableContainer>
                       )}
                     </SectionCard>
+                  </Box>
+                )}
+
+                {/* AUDITORIA */}
+                {view === 'auditoria' && (
+                  <Box>
+                    <Typography variant="h5" sx={{ mb: 2.5 }}>
+                      Auditoria Digital
+                    </Typography>
+
+                    {auditoriaIndicadores && (
+                      <Grid container spacing={2.5} sx={{ mb: 3 }}>
+                        <Grid item xs={12} sm={6} md={3}>
+                          <SectionCard title="Eventos no total">
+                            <Typography variant="h4" fontWeight={800} color="primary.main">{auditoriaIndicadores.total_eventos}</Typography>
+                          </SectionCard>
+                        </Grid>
+                        <Grid item xs={12} sm={6} md={3}>
+                          <SectionCard title="Logins recusados (24h)">
+                            <Typography variant="h4" fontWeight={800} color={auditoriaIndicadores.logins_recusados_24h > 0 ? 'error.main' : 'success.main'}>
+                              {auditoriaIndicadores.logins_recusados_24h}
+                            </Typography>
+                          </SectionCard>
+                        </Grid>
+                        <Grid item xs={12} sm={6} md={3}>
+                          <SectionCard title="Último acesso">
+                            <Typography variant="body2" fontWeight={700}>
+                              {auditoriaIndicadores.ultimos_acessos?.length
+                                ? auditoriaIndicadores.ultimos_acessos[0].usuario_nome
+                                : '—'}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              {auditoriaIndicadores.ultimos_acessos?.length
+                                ? formatarDataHora(auditoriaIndicadores.ultimos_acessos[0].ultimo_acesso)
+                                : 'sem registros'}
+                            </Typography>
+                          </SectionCard>
+                        </Grid>
+                        <Grid item xs={12} sm={6} md={3}>
+                          <SectionCard title="Possíveis ataques">
+                            <Typography variant="h4" fontWeight={800} color={(auditoriaIndicadores.alerta_tentativas?.length || 0) > 0 ? 'error.main' : 'success.main'}>
+                              {(auditoriaIndicadores.alerta_tentativas || []).length}
+                            </Typography>
+                            {auditoriaIndicadores.alerta_tentativas?.length > 0 && (
+                              <Typography variant="caption" color="text.secondary">
+                                {auditoriaIndicadores.alerta_tentativas.map((a) => `${a.usuario_nome} (${a.tentativas}x)`).join(', ')}
+                              </Typography>
+                            )}
+                          </SectionCard>
+                        </Grid>
+                      </Grid>
+                    )}
+
+                    <SectionCard title="Filtros">
+                      <Grid container spacing={2}>
+                        <Grid item xs={12} sm={6} md={4}>
+                          <TextField
+                            fullWidth
+                            label="Buscar por usuário"
+                            value={auditoriaFiltros.busca}
+                            onChange={(e) => setAuditoriaFiltros((prev) => ({ ...prev, busca: e.target.value }))}
+                            placeholder="admin@escola.com"
+                          />
+                        </Grid>
+                        <Grid item xs={12} sm={6} md={4}>
+                          <TextField
+                            select
+                            fullWidth
+                            label="Operação"
+                            value={auditoriaFiltros.operacao}
+                            onChange={(e) => setAuditoriaFiltros((prev) => ({ ...prev, operacao: e.target.value }))}
+                          >
+                            <MenuItem value="">Todas</MenuItem>
+                            <MenuItem value="LOGIN_SUCESSO">Login com sucesso</MenuItem>
+                            <MenuItem value="LOGIN_FALHA">Login recusado</MenuItem>
+                            <MenuItem value="CRIAR">Criar</MenuItem>
+                            <MenuItem value="EDITAR">Editar</MenuItem>
+                            <MenuItem value="EXCLUIR">Excluir</MenuItem>
+                          </TextField>
+                        </Grid>
+                        <Grid item xs={12} sm={6} md={2}>
+                          <TextField
+                            fullWidth
+                            label="De"
+                            type="date"
+                            value={auditoriaFiltros.inicio}
+                            onChange={(e) => setAuditoriaFiltros((prev) => ({ ...prev, inicio: e.target.value }))}
+                            InputLabelProps={{ shrink: true }}
+                          />
+                        </Grid>
+                        <Grid item xs={12} sm={6} md={2}>
+                          <TextField
+                            fullWidth
+                            label="Até"
+                            type="date"
+                            value={auditoriaFiltros.fim}
+                            onChange={(e) => setAuditoriaFiltros((prev) => ({ ...prev, fim: e.target.value }))}
+                            InputLabelProps={{ shrink: true }}
+                          />
+                        </Grid>
+                      </Grid>
+                    </SectionCard>
+
+                    <Box sx={{ mt: 3 }}>
+                      <SectionCard title={`Registros de auditoria (${auditoria.length})`}>
+                        {auditoria.length === 0 ? (
+                          <EmptyState icon={<HistoryIcon />} text="Nenhum registro encontrado com os filtros aplicados." />
+                        ) : (
+                          <TableContainer sx={{ borderRadius: 3, border: '1px solid', borderColor: 'grey.200' }}>
+                            <Table size="small">
+                              <TableHead sx={{ bgcolor: 'grey.50' }}>
+                                <TableRow>
+                                  <TableCell sx={{ fontWeight: 700 }}>Data / Hora</TableCell>
+                                  <TableCell sx={{ fontWeight: 700 }}>Usuário</TableCell>
+                                  <TableCell sx={{ fontWeight: 700 }}>Perfil</TableCell>
+                                  <TableCell sx={{ fontWeight: 700 }}>Operação</TableCell>
+                                  <TableCell sx={{ fontWeight: 700 }}>Recurso</TableCell>
+                                  <TableCell sx={{ fontWeight: 700 }}>Detalhes</TableCell>
+                                </TableRow>
+                              </TableHead>
+                              <TableBody>
+                                {auditoria.map((registro) => (
+                                  <TableRow key={registro.id} hover sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
+                                    <TableCell>{formatarDataHora(registro.criado_em)}</TableCell>
+                                    <TableCell>
+                                      <Typography fontWeight={600}>{registro.usuario_nome}</Typography>
+                                      <Typography variant="caption" color="text.secondary">ID {registro.usuario_id}</Typography>
+                                    </TableCell>
+                                    <TableCell>
+                                      <Chip
+                                        label={String(registro.perfil).toUpperCase()}
+                                        size="small"
+                                        color={registro.perfil === 'admin' ? 'warning' : 'primary'}
+                                        variant="outlined"
+                                        sx={{ fontWeight: 700 }}
+                                      />
+                                    </TableCell>
+                                    <TableCell>
+                                      <Chip
+                                        label={registro.operacao}
+                                        size="small"
+                                        color={operacaoColor(registro.operacao)}
+                                        sx={{ fontWeight: 700 }}
+                                      />
+                                    </TableCell>
+                                    <TableCell>{registro.recurso}{registro.recurso_id ? ` #${registro.recurso_id}` : ''}</TableCell>
+                                    <TableCell sx={{ maxWidth: 320 }}>
+                                      <Typography
+                                        variant="caption"
+                                        color="text.secondary"
+                                        sx={{
+                                          overflow: 'hidden',
+                                          textOverflow: 'ellipsis',
+                                          display: '-webkit-box',
+                                          WebkitLineClamp: 2,
+                                          WebkitBoxOrient: 'vertical',
+                                        }}
+                                      >
+                                        {formatarDetalhes(humanizarDetalhes(registro.detalhes))}
+                                      </Typography>
+                                    </TableCell>
+                                  </TableRow>
+                                ))}
+                              </TableBody>
+                            </Table>
+                          </TableContainer>
+                        )}
+                      </SectionCard>
+                    </Box>
+                  </Box>
+                )}
+
+                {/* ACESSO NEGADO */}
+                {view === 'acesso-negado' && (
+                  <Box sx={{ textAlign: 'center', py: 8 }}>
+                    <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}>
+                      <Avatar sx={{ width: 88, height: 88, bgcolor: 'error.main', mx: 'auto', mb: 3 }}>
+                        <LockIcon sx={{ fontSize: 44 }} />
+                      </Avatar>
+                    </motion.div>
+                    <Typography variant="h4" fontWeight={800} sx={{ mb: 1 }}>
+                      Acesso Negado
+                    </Typography>
+                    <Typography color="text.secondary" sx={{ mb: 4, maxWidth: 420, mx: 'auto' }}>
+                      Sua conta não tem permissão para acessar esta área. Entre em contato com a coordenação caso acredite que isso é um erro.
+                    </Typography>
+                    <Button variant="contained" startIcon={<DashboardIcon />} onClick={() => irPara('dashboard')} sx={{ px: 4, py: 1.2, borderRadius: 3 }}>
+                      Voltar ao início
+                    </Button>
+                  </Box>
+                )}
+
+                {/* CHAMADA DO PROFESSOR */}
+                {view === 'chamada' && (
+                  <Box>
+                    <Typography variant="h5" sx={{ mb: 0.5 }}>Fazer Chamada</Typography>
+                    <Typography color="text.secondary" sx={{ mb: 3 }}>
+                      Registre a frequencia dos alunos da sua turma.
+                    </Typography>
+
+                    <SectionCard title="Professor">
+                      <TextField
+                        fullWidth
+                        disabled
+                        label="Professor logado"
+                        value={professorLogado?.nome || ''}
+                      />
+                    </SectionCard>
+
+                    <SectionCard title="Dados da Aula">
+                      <Grid container spacing={2.5}>
+                        <Grid item xs={12} md={3}>
+                          <TextField
+                            fullWidth
+                            label="Turma"
+                            value={turmas.find((t) => Number(t.id) === Number(professorLogado?.turma_id))?.nome || ''}
+                            disabled
+                          />
+                        </Grid>
+                        <Grid item xs={12} md={3}>
+                          <TextField
+                            select
+                            fullWidth
+                            label="Disciplina"
+                            name="disciplina_id"
+                            value={chamadaForm.disciplina_id}
+                            onChange={handleChamadaChange}
+                          >
+                            {(professorLogado?.disciplinas || []).length > 0
+                              ? professorLogado.disciplinas.map((d) => (
+                                  <MenuItem key={d.id} value={d.id}>{d.nome}</MenuItem>
+                                ))
+                              : disciplinas.map((disciplina) => (
+                                  <MenuItem key={disciplina.id} value={disciplina.id}>{disciplina.nome}</MenuItem>
+                                ))
+                            }
+                          </TextField>
+                        </Grid>
+                        <Grid item xs={12} md={2}>
+                          <TextField
+                            fullWidth
+                            type="date"
+                            label="Data da aula"
+                            name="data_aula"
+                            value={chamadaForm.data_aula}
+                            onChange={handleChamadaChange}
+                            InputLabelProps={{ shrink: true }}
+                          />
+                        </Grid>
+                        <Grid item xs={12} md={2}>
+                          <TextField
+                            fullWidth
+                            type="number"
+                            label="Quantidade de aulas"
+                            name="quantidade_aulas"
+                            value={chamadaForm.quantidade_aulas}
+                            onChange={handleChamadaChange}
+                            inputProps={{ min: 1, max: 10 }}
+                          />
+                        </Grid>
+                        <Grid item xs={12} md={2}>
+                          <TextField
+                            fullWidth
+                            label="Titulo do plano"
+                            name="titulo_plano"
+                            value={chamadaForm.titulo_plano}
+                            onChange={handleChamadaChange}
+                          />
+                        </Grid>
+                      </Grid>
+                    </SectionCard>
+
+                    <SectionCard title="Resumo">
+                      <Stack direction="row" spacing={2} flexWrap="wrap">
+                        <Chip label={`Professor: ${professorLogado?.nome || '---'}`} />
+                        <Chip label={`Alunos: ${alunosDaTurma.length}`} />
+                        <Chip label={`Aulas: ${quantidadeAulas}`} color="primary" />
+                      </Stack>
+                    </SectionCard>
+
+                    <SectionCard title="Alunos da Turma">
+                      {alunosDaTurma.length === 0 ? (
+                        <Paper variant="outlined" sx={{ p: 4, textAlign: 'center' }}>
+                          <Typography color="text.secondary">
+                            Nenhum aluno encontrado nesta turma.
+                          </Typography>
+                        </Paper>
+                      ) : (
+                        <TableContainer sx={{ borderRadius: 3, border: '1px solid', borderColor: 'grey.200' }}>
+                          <Table size="small">
+                            <TableHead sx={{ bgcolor: 'grey.50' }}>
+                              <TableRow>
+                                <TableCell sx={{ fontWeight: 700 }}>Aluno</TableCell>
+                                {Array.from({ length: quantidadeAulas }, (_, index) => (
+                                  <TableCell key={index} align="center" sx={{ fontWeight: 700 }}>
+                                    Aula {index + 1}
+                                  </TableCell>
+                                ))}
+                              </TableRow>
+                            </TableHead>
+                            <TableBody>
+                              {alunosDaTurma.map((aluno) => (
+                                <TableRow key={aluno.id} hover sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
+                                  <TableCell>
+                                    <Stack direction="row" spacing={1.5} alignItems="center">
+                                      <Avatar sx={{ width: 34, height: 34, bgcolor: 'primary.50', color: 'primary.main', fontSize: 13, fontWeight: 700 }}>
+                                        {getInitials(aluno.nome)}
+                                      </Avatar>
+                                      <Typography fontWeight={600}>{aluno.nome}</Typography>
+                                    </Stack>
+                                  </TableCell>
+                                  {Array.from({ length: quantidadeAulas }, (_, index) => {
+                                    const numeroAula = index + 1;
+                                    const chave = `${aluno.id}-${numeroAula}`;
+                                    return (
+                                      <TableCell key={chave} align="center">
+                                        <Stack alignItems="center" spacing={0}>
+                                          <Checkbox
+                                            checked={alunoTemFalta(aluno.id, numeroAula)}
+                                            onChange={() => handleMarcarFalta(aluno.id, numeroAula)}
+                                            color="error"
+                                          />
+                                          <Typography variant="caption" color="text.secondary">
+                                            Falta
+                                          </Typography>
+                                        </Stack>
+                                      </TableCell>
+                                    );
+                                  })}
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </TableContainer>
+                      )}
+                    </SectionCard>
+
+                    <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end' }}>
+                      <Button
+                        variant="contained"
+                        size="large"
+                        color="primary"
+                        onClick={handleSalvarChamada}
+                        sx={{ px: 4, py: 1.5, borderRadius: 3 }}
+                      >
+                        Salvar Chamada
+                      </Button>
+                    </Box>
                   </Box>
                 )}
 
@@ -1896,6 +2465,25 @@ function App() {
                                   {t.nome} ({t.serie} - {t.ano})
                                 </MenuItem>
                               ))}
+                            </TextField>
+                          </Grid>
+                          <Grid item xs={12} md={6}>
+                            <TextField fullWidth label="Usuário (login)" name="usuario" value={professorForm.usuario} onChange={handleProfessorChange} placeholder="Ex.: maria" />
+                          </Grid>
+                          <Grid item xs={12} md={6}>
+                            <TextField fullWidth label="Senha" name="senha" type="password" value={professorForm.senha} onChange={handleProfessorChange} placeholder={editingProfessorId ? 'Deixe em branco para manter' : 'Senha do login'} />
+                          </Grid>
+                          <Grid item xs={12}>
+                            <TextField
+                              select
+                              fullWidth
+                              label="Perfil de acesso"
+                              name="perfil"
+                              value={professorForm.perfil || 'professor'}
+                              onChange={handleProfessorChange}
+                            >
+                              <MenuItem value="professor">Professor (acesso só à chamada)</MenuItem>
+                              <MenuItem value="admin">Administrador / Gestão (acesso total)</MenuItem>
                             </TextField>
                           </Grid>
                           <Grid item xs={12}>
@@ -1968,6 +2556,7 @@ function App() {
                                 <TableCell sx={{ fontWeight: 700 }}>Professor</TableCell>
                                 <TableCell sx={{ fontWeight: 700 }}>Contato</TableCell>
                                 <TableCell sx={{ fontWeight: 700 }}>Turma</TableCell>
+                                <TableCell sx={{ fontWeight: 700 }}>Perfil</TableCell>
                                 <TableCell sx={{ fontWeight: 700 }}>Disciplinas</TableCell>
                                 <TableCell align="right" sx={{ fontWeight: 700 }}>Ações</TableCell>
                               </TableRow>
@@ -1989,6 +2578,17 @@ function App() {
                                   </TableCell>
                                   <TableCell>
                                     <Chip label={turmas.find((t) => t.id === professor.turma_id)?.nome || professor.turma?.nome || '—'} size="small" variant="outlined" sx={{ borderColor: 'grey.300' }} />
+                                  </TableCell>
+                                  <TableCell>
+                                    <Chip
+                                      label={professor.perfil === 'admin' ? 'Administrador' : 'Professor'}
+                                      size="small"
+                                      sx={{
+                                        bgcolor: professor.perfil === 'admin' ? 'rgba(124,58,237,0.12)' : 'rgba(79,70,229,0.08)',
+                                        color: professor.perfil === 'admin' ? '#6d28d9' : 'primary.main',
+                                        fontWeight: 600,
+                                      }}
+                                    />
                                   </TableCell>
                                   <TableCell>
                                     <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, maxWidth: 280 }}>

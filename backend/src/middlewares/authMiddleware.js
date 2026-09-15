@@ -1,7 +1,7 @@
 import Professor from '../models/Professor.js';
 import Turma from '../models/Turma.js';
 import Disciplina from '../models/Disciplina.js';
-import { sessions } from '../services/sessions.js';
+import { verificarToken } from '../services/auth.js';
 
 async function autenticar(req, res, next) {
   const header = req.headers.authorization || '';
@@ -11,14 +11,14 @@ async function autenticar(req, res, next) {
     return res.status(401).json({ message: 'Acesso não autorizado. Faça login.' });
   }
 
-  const professorId = sessions.get(token);
+  const payload = verificarToken(token);
 
-  if (!professorId) {
-    return res.status(401).json({ message: 'Sessão inválida ou expirada. Faça login novamente.' });
+  if (!payload || !payload.sub) {
+    return res.status(401).json({ message: 'Token inválido ou expirado. Faça login novamente.' });
   }
 
   try {
-    const professor = await Professor.findByPk(professorId, {
+    const professor = await Professor.findByPk(payload.sub, {
       include: [
         {
           model: Turma,
@@ -35,7 +35,6 @@ async function autenticar(req, res, next) {
     });
 
     if (!professor) {
-      sessions.delete(token);
       return res.status(401).json({ message: 'Professor não encontrado. Faça login novamente.' });
     }
 
@@ -48,4 +47,13 @@ async function autenticar(req, res, next) {
   }
 }
 
-export { autenticar };
+async function exigirAdmin(req, res, next) {
+  if (req.professor && req.professor.perfil === 'admin') {
+    return next();
+  }
+  return res.status(403).json({
+    message: 'Acesso negado. Somente o perfil administrador pode executar esta ação.'
+  });
+}
+
+export { autenticar, exigirAdmin };

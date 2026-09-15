@@ -1,4 +1,5 @@
 import { DataTypes, Model } from 'sequelize';
+import bcrypt from 'bcryptjs';
 import sequelize from '../config/database.js';
 
 class Professor extends Model {}
@@ -30,6 +31,11 @@ Professor.init(
     turma_id: {
       type: DataTypes.INTEGER,
       allowNull: true
+    },
+    perfil: {
+      type: DataTypes.ENUM('professor', 'admin', 'aluno'),
+      allowNull: false,
+      defaultValue: 'professor'
     }
   },
   {
@@ -37,6 +43,17 @@ Professor.init(
     modelName: 'professor',
     tableName: 'professores',
     timestamps: false,
+    hooks: {
+      async beforeSave(professor) {
+        if (professor.changed('senha') && professor.senha) {
+          const valor = String(professor.senha);
+          if (!valor.startsWith('$2')) {
+            const salt = await bcrypt.genSalt(10);
+            professor.senha = await bcrypt.hash(valor, salt);
+          }
+        }
+      }
+    },
     defaultScope: {
       attributes: { exclude: ['senha'] }
     }

@@ -6,6 +6,7 @@ import Frequencia from './Frequencia.js';
 import Disciplina from './Disciplina.js';
 import Professor from './Professor.js';
 import ProfessorDisciplina from './ProfessorDisciplina.js';
+import Auditoria from './Auditoria.js';
 
 Turma.hasMany(Professor, {
   as: 'professores',

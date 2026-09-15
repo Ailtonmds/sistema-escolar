@@ -2,6 +2,7 @@ import { Op } from 'sequelize';
 import Frequencia from '../models/Frequencia.js';
 import Aluno from '../models/Aluno.js';
 import Turma from '../models/Turma.js';
+import { registrarAuditoria } from '../services/auditoria.js';
 
 function classificarFrequencia(percentual) {
   if (percentual >= 75) return { nivel: 'Boa', cor: '#10b981', rotulo: 'Frequência Boa' };
@@ -83,6 +84,8 @@ async function adicionarFrequencia(req, res) {
       presente
     });
 
+    registrarAuditoriaFrequencia(req, 'CRIAR', frequencia);
+
     const resultado = await Frequencia.findByPk(frequencia.id, {
       include: [
         {
@@ -101,6 +104,91 @@ async function adicionarFrequencia(req, res) {
       message: 'Erro ao adicionar frequência',
       error: erro.message
     });
+  }
+}
+
+function registrarAuditoriaFrequencia(req, operacao, frequencia, extras = null) {
+  registrarAuditoria({
+    usuario_id: req.professor?.id || null,
+    usuario_nome: req.professor?.nome || 'Sistema',
+    perfil: req.professor?.perfil || null,
+    operacao,
+    recurso: 'frequencia',
+    recurso_id: frequencia.id || extras?.id || null,
+    detalhes: {
+      aluno_id: frequencia.aluno_id,
+      data_aula: frequencia.data_aula,
+      presente: frequencia.presente,
+      chamada_id: frequencia.chamada_id || null,
+      numero_aula: frequencia.numero_aula || null,
+      ...(extras || {})
+    }
+  });
+}
+
+async function atualizarFrequencia(req, res) {
+  try {
+    const { id } = req.params;
+    const frequencia = await Frequencia.findByPk(id);
+
+    if (!frequencia) {
+      return res.status(404).json({ message: 'Frequência não encontrada' });
+    }
+
+    const { aluno_id, data_aula, presente, chamada_id, numero_aula } = req.body;
+
+    if (!aluno_id || !data_aula || typeof presente !== 'boolean') {
+      return res.status(400).json({ message: 'aluno_id, data_aula e presente são obrigatórios' });
+    }
+
+    const valorAnterior = {
+      aluno_id: frequencia.aluno_id,
+      data_aula: frequencia.data_aula,
+      presente: frequencia.presente
+    };
+
+    await frequencia.update({
+      aluno_id,
+      data_aula,
+      presente,
+      chamada_id: chamada_id !== undefined ? chamada_id : frequencia.chamada_id,
+      numero_aula: numero_aula !== undefined ? numero_aula : frequencia.numero_aula
+    });
+
+    registrarAuditoriaFrequencia(req, 'EDITAR', frequencia, { anterior: valorAnterior });
+
+    return res.status(200).json(frequencia);
+  } catch (erro) {
+    console.error('Erro ao atualizar frequência:', erro);
+    return res.status(400).json({ message: 'Erro ao atualizar frequência', error: erro.message });
+  }
+}
+
+async function excluirFrequencia(req, res) {
+  try {
+    const { id } = req.params;
+    const frequencia = await Frequencia.findByPk(id);
+
+    if (!frequencia) {
+      return res.status(404).json({ message: 'Frequência não encontrada' });
+    }
+
+    const dadosRemovidos = {
+      aluno_id: frequencia.aluno_id,
+      data_aula: frequencia.data_aula,
+      presente: frequencia.presente,
+      chamada_id: frequencia.chamada_id,
+      numero_aula: frequencia.numero_aula
+    };
+
+    await frequencia.destroy();
+
+    registrarAuditoriaFrequencia(req, 'EXCLUIR', frequencia, { removido: dadosRemovidos });
+
+    return res.status(200).json({ message: 'Frequência excluída com sucesso' });
+  } catch (erro) {
+    console.error('Erro ao excluir frequência:', erro);
+    return res.status(500).json({ message: 'Erro ao excluir frequência', error: erro.message });
   }
 }
 
@@ -253,6 +341,8 @@ async function obterResumoFrequencias(req, res) {
 export default {
   listarFrequencias,
   adicionarFrequencia,
+  atualizarFrequencia,
+  excluirFrequencia,
   obterFrequenciasAluno,
   obterEstatisticas,
   obterResumoFrequencias

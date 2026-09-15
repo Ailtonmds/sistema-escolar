@@ -8,6 +8,7 @@ import disciplinaRoutes from './disciplinas/routes.js';
 import professorRoutes from './professores/routes.js';
 import authRoutes from './auth/routes.js';
 import chamadaRoutes from './chamadas/routes.js';
+import auditoriaRoutes from './auditoria/routes.js';
 
 const router = Router();
 
@@ -19,5 +20,6 @@ router.use('/api/disciplinas', disciplinaRoutes);
 router.use('/api/professores', professorRoutes);
 router.use('/api/auth', authRoutes);
 router.use('/api/chamadas', chamadaRoutes);
+router.use('/api/auditoria', auditoriaRoutes);
 
 export default router;

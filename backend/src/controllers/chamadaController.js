@@ -1,5 +1,6 @@
 import Chamada from '../models/Chamada.js';
 import Frequencia from '../models/Frequencia.js';
+import { registrarAuditoria } from '../services/auditoria.js';
 
 async function criarChamada(req, res) {
   const professor = req.professor;
@@ -49,7 +50,7 @@ async function criarChamada(req, res) {
     for (const falta of faltas) {
       if (!falta || !falta.aluno_id || !falta.numero_aula) continue;
 
-      await Frequencia.create({
+      const frequencia = await Frequencia.create({
         aluno_id: falta.aluno_id,
         chamada_id: chamada.id,
         numero_aula: falta.numero_aula,
@@ -57,9 +58,43 @@ async function criarChamada(req, res) {
         presente: false
       });
 
+      registrarAuditoria({
+        usuario_id: professor.id,
+        usuario_nome: professor.nome,
+        perfil: professor.perfil,
+        operacao: 'CRIAR',
+        recurso: 'frequencia',
+        recurso_id: frequencia.id,
+        detalhes: {
+          aluno_id: falta.aluno_id,
+          chamada_id: chamada.id,
+          numero_aula: falta.numero_aula,
+          data_aula,
+          presente: false,
+          disciplina_id: Number(disciplina_id)
+        }
+      });
+
       faltasRegistradas += 1;
     }
   }
+
+  registrarAuditoria({
+    usuario_id: professor.id,
+    usuario_nome: professor.nome,
+    perfil: professor.perfil,
+    operacao: 'CRIAR',
+    recurso: 'chamada',
+    recurso_id: chamada.id,
+    detalhes: {
+      turma_id: Number(turma_id),
+      disciplina_id: Number(disciplina_id),
+      data_aula,
+      quantidade_aulas: quantidade,
+      titulo_plano: titulo_plano || null,
+      faltas_registradas: faltasRegistradas
+    }
+  });
 
   console.log(
     `Chamada salva: professor ${professor.nome}, disciplina ${disciplina_id}, ${quantidade} aula(s)`

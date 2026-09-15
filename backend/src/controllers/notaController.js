@@ -2,6 +2,7 @@ import Nota from '../models/Nota.js';
 import Aluno from '../models/Aluno.js';
 import Disciplina from '../models/Disciplina.js';
 import sequelize from '../config/database.js';
+import { registrarAuditoria } from '../services/auditoria.js';
 
 // Listar todas as notas
 async function listarNotas(req, res) {
@@ -12,6 +13,24 @@ async function listarNotas(req, res) {
     console.error('Erro ao listar notas:', erro);
     return res.status(500).json({ message: 'Erro ao listar notas', error: erro.message });
   }
+}
+
+function registrarAuditoriaNota(req, operacao, nota, extras = null) {
+  registrarAuditoria({
+    usuario_id: req.professor?.id || null,
+    usuario_nome: req.professor?.nome || 'Sistema',
+    perfil: req.professor?.perfil || null,
+    operacao,
+    recurso: 'nota',
+    recurso_id: nota.id || extras?.id || null,
+    detalhes: {
+      aluno_id: nota.aluno_id,
+      disciplina_id: nota.disciplina,
+      bimestre: nota.bimestre,
+      nota: nota.nota,
+      ...(extras || {})
+    }
+  });
 }
 
 // Cadastrar nova nota
@@ -31,10 +50,80 @@ async function cadastrarNota(req, res) {
       nota: parseFloat(nota)
     });
 
+    registrarAuditoriaNota(req, 'CRIAR', novaNota);
+
     return res.status(201).json(novaNota);
   } catch (erro) {
     console.error('Erro ao cadastrar nota:', erro);
     return res.status(400).json({ message: 'Erro ao cadastrar nota', error: erro.message });
+  }
+}
+
+// Atualizar nota existente
+async function atualizarNota(req, res) {
+  try {
+    const { id } = req.params;
+    const nota = await Nota.findByPk(id);
+
+    if (!nota) {
+      return res.status(404).json({ message: 'Nota não encontrada' });
+    }
+
+    const { aluno_id, disciplina_id, disciplina, bimestre, nota: novoValor } = req.body;
+    const disciplinaFinal = disciplina_id || disciplina;
+
+    if (!aluno_id || !disciplinaFinal || !bimestre || novoValor === undefined) {
+      return res.status(400).json({ message: 'Todos os campos são obrigatórios' });
+    }
+
+    const valorAnterior = {
+      aluno_id: nota.aluno_id,
+      disciplina_id: nota.disciplina,
+      bimestre: nota.bimestre,
+      nota: nota.nota
+    };
+
+    await nota.update({
+      aluno_id,
+      disciplina: disciplinaFinal,
+      bimestre: parseInt(bimestre, 10),
+      nota: parseFloat(novoValor)
+    });
+
+    registrarAuditoriaNota(req, 'EDITAR', nota, { anterior: valorAnterior });
+
+    return res.status(200).json(nota);
+  } catch (erro) {
+    console.error('Erro ao atualizar nota:', erro);
+    return res.status(400).json({ message: 'Erro ao atualizar nota', error: erro.message });
+  }
+}
+
+// Excluir nota
+async function excluirNota(req, res) {
+  try {
+    const { id } = req.params;
+    const nota = await Nota.findByPk(id);
+
+    if (!nota) {
+      return res.status(404).json({ message: 'Nota não encontrada' });
+    }
+
+    const dadosRemovidos = {
+      aluno_id: nota.aluno_id,
+      disciplina_id: nota.disciplina,
+      bimestre: nota.bimestre,
+      nota: nota.nota
+    };
+
+    await nota.destroy();
+
+    registrarAuditoriaNota(req, 'EXCLUIR', nota, { removido: dadosRemovidos });
+
+    return res.status(200).json({ message: 'Nota excluída com sucesso' });
+  } catch (erro) {
+    console.error('Erro ao excluir nota:', erro);
+    return res.status(500).json({ message: 'Erro ao excluir nota', error: erro.message });
   }
 }
 
@@ -265,6 +354,8 @@ async function obterMiniBoletim(req, res) {
 export default {
   listarNotas,
   cadastrarNota,
+  atualizarNota,
+  excluirNota,
   obterBoletimAluno,
   obterEstatisticas,
   obterRankingBoletins,
