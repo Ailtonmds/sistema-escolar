@@ -562,11 +562,9 @@ function App() {
   const carregarDisciplinas = async () => {
 
     try {
-<<<<<<< HEAD
       const response = await fetch(`${API_BASE_URL}/api/disciplinas`, { headers: authedHeaders() });
       if (!response.ok) throw new Error('Erro ao carregar disciplinas');
       setDisciplinas(await response.json());
-=======
 
       const response = await fetch(
         `${API_BASE_URL}/api/disciplinas`
@@ -581,8 +579,6 @@ function App() {
       const data = await response.json();
 
       setDisciplinas(data);
-
->>>>>>> 5e17166b457a131b5979e10576926edb3ca24c35
     } catch (error) {
 
       console.error(error);
@@ -593,11 +589,9 @@ function App() {
   const carregarProfessores = async () => {
 
     try {
-<<<<<<< HEAD
       const response = await fetch(`${API_BASE_URL}/api/professores`, { headers: authedHeaders() });
       if (!response.ok) throw new Error('Erro ao carregar professores');
       setProfessores(await response.json());
-=======
 
       const response = await fetch(
         `${API_BASE_URL}/api/professores`
@@ -612,8 +606,6 @@ function App() {
       const data = await response.json();
 
       setProfessores(data);
-
->>>>>>> 5e17166b457a131b5979e10576926edb3ca24c35
     } catch (error) {
 
       console.error(error);
@@ -647,7 +639,7 @@ function App() {
   };
 
   useEffect(() => {
-<<<<<<< HEAD
+
     if (loggedIn) {
       carregarAlunos();
       carregarTurmas();
@@ -3586,6 +3578,7 @@ function App() {
                         mb: 2,
                       }}
                     >
+<<<<<<< HEAD
                       {professoresFiltrados.length === 0 ? (
                         <EmptyState icon={<SupervisorAccountIcon />} text="Nenhum professor encontrado." />
                       ) : (
